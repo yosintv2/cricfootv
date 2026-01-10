@@ -1,20 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>{{CHANNEL_NAME}} Football Schedule | tv.cricfoot.net</title>
-    <link rel="stylesheet" href="http://cdn.livesoccertv.com/styles.css?v=267" type="text/css">
+    <meta charset="UTF-8"><title>{{CHANNEL_NAME}} Soccer Schedule</title>
+    <link rel="stylesheet" href="http://cdn.livesoccertv.com/styles.css?v=267">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50">
-    <header class="p-4 bg-blue-900"><a href="{{DOMAIN}}/" class="text-white font-black">CRICFOOTTV</a></header>
-    <div class="bg-blue-800 py-16 text-center text-white">
-        <h1 class="text-5xl font-black uppercase">{{CHANNEL_NAME}}</h1>
-        <p class="mt-4 opacity-60">Complete Live TV Schedule</p>
+<body>
+    <header class="bg-blue-900 p-4 text-white"><a href="{{DOMAIN}}/" class="font-bold">CRICFOOTTV</a></header>
+    <div class="bg-slate-800 py-16 text-center text-white">
+        <h1 class="text-5xl font-black">{{CHANNEL_NAME}}</h1>
+        <p class="opacity-50 mt-2">Verified TV Rights & Broadcast Schedule</p>
     </div>
-    <main class="max-w-5xl mx-auto my-12 p-4">
-        <div class="bg-white rounded shadow-xl border overflow-hidden">{{MATCH_LISTING}}</div>
-    </main>
-    <footer class="p-10 text-center text-gray-500 font-bold uppercase text-xs">&copy; 2026 TV.CRICFOOT.NET</footer>
+    <main class="max-w-4xl mx-auto my-10 bg-white border">{{LISTING}}</main>
+    <script>
+        const f = new Intl.DateTimeFormat([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+        document.querySelectorAll('[data-unix]').forEach(el => {
+            el.innerText = f.format(new Date(el.dataset.unix * 1000));
+        });
+    </script>
 </body>
 </html>
