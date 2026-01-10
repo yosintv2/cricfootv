@@ -8,10 +8,10 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5525538810839147" crossorigin="anonymous"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Small overrides to ensure consistency with our custom logic */
         .date-btn.active { background: #00447c !important; color: #fff !important; }
         .weekly-nav { background: #002d56; display: flex; overflow-x: auto; }
         .date-btn { padding: 12px; text-align: center; color: #ccc; text-decoration: none; border-right: 1px solid #00447c; flex: 1; min-width: 90px; }
+        .match-row:hover { background-color: #f0f7ff; }
     </style>
 </head>
 <body class="lstv-body">
@@ -24,11 +24,11 @@
     <div class="weekly-nav">{{WEEKLY_MENU}}</div>
 
     <div class="search-container p-4 bg-gray-100">
-        <input type="text" id="matchSearch" placeholder="Search matches..." class="w-full p-3 border rounded">
+        <input type="text" id="matchSearch" placeholder="Search matches or teams..." class="w-full p-3 border rounded">
     </div>
 
     <main class="container py-8">
-        <div class="match-listings-wrapper">
+        <div class="match-listings-wrapper bg-white shadow rounded">
             {{MATCH_LISTING}}
         </div>
     </main>
@@ -38,12 +38,27 @@
     </footer>
 
     <script>
+        // 1. Local Time Logic
+        function convertLocalTimes() {
+            document.querySelectorAll('.local-time').forEach(el => {
+                const unix = el.getAttribute('data-unix');
+                if (unix) {
+                    const date = new Date(unix * 1000);
+                    el.innerText = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                }
+            });
+        }
+
+        // 2. Search Logic
         document.getElementById('matchSearch').addEventListener('input', function(e) {
             let term = e.target.value.toLowerCase();
             document.querySelectorAll('.match-row').forEach(row => {
                 row.style.display = row.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
             });
         });
+
+        // Run conversion on load
+        window.onload = convertLocalTimes;
     </script>
 </body>
 </html>
