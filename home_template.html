@@ -5,86 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{PAGE_TITLE}} | tv.cricfoot.net</title>
     <link rel="stylesheet" href="http://cdn.livesoccertv.com/styles.css?v=267" type="text/css">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5525538810839147" crossorigin="anonymous"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         .date-btn.active { background: #00447c !important; color: #fff !important; border-bottom: 3px solid #f90; }
         .weekly-nav { background: #002d56; display: flex; overflow-x: auto; scrollbar-width: none; }
-        .weekly-nav::-webkit-scrollbar { display: none; }
-        .date-btn { padding: 12px; text-align: center; color: #ccc; text-decoration: none; border-right: 1px solid #00447c; flex: 1; min-width: 90px; transition: 0.2s; }
-        .date-btn:hover { background: #003a6e; }
-        
-        /* Minimalist Row Styles */
-        .league-header { background: #f1f5f9; color: #475569; padding: 10px 16px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e2e8f0; }
-        .match-row { transition: all 0.2s; border-bottom: 1px solid #f1f5f9; }
-        .match-row:hover { background-color: #f0f7ff; transform: translateX(4px); }
-        .time-box { min-width: 70px; font-variant-numeric: tabular-nums; }
+        .date-btn { padding: 12px; text-align: center; color: #ccc; text-decoration: none; border-right: 1px solid #00447c; flex: 1; min-width: 90px; }
+        .league-header { background: #f1f5f9; color: #475569; padding: 10px 16px; font-weight: 800; font-size: 11px; text-transform: uppercase; border-top: 1px solid #e2e8f0; }
+        .match-row { border-bottom: 1px solid #f1f5f9; text-decoration: none; }
+        .time-box { min-width: 60px; }
     </style>
 </head>
-<body class="bg-slate-50">
+<body>
     <header style="background:#002d56; padding: 15px 0; border-bottom: 4px solid #f90;">
-        <div class="max-w-4xl mx-auto px-4">
-            <a href="{{DOMAIN}}/" style="color:#fff; font-size:24px; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">CRICFOOT<span style="color:#f90;">TV</span></a>
-        </div>
+        <div class="max-w-4xl mx-auto px-4"><a href="{{DOMAIN}}/" style="color:#fff; font-size:24px; font-weight:900;">CRICFOOTTV</a></div>
     </header>
 
-    <nav class="weekly-nav shadow-lg">
-        <div class="max-w-4xl mx-auto flex w-full">
-            {{WEEKLY_MENU}}
-        </div>
-    </nav>
+    <nav class="weekly-nav">{{WEEKLY_MENU}}</nav>
 
-    <div class="bg-slate-100 border-b">
-        <div class="max-w-4xl mx-auto p-4">
-            <input type="text" id="matchSearch" placeholder="Filter by team or league..." class="w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-        </div>
+    <div class="max-w-4xl mx-auto p-4">
+        <input type="text" id="matchSearch" placeholder="Filter matches..." class="w-full p-3 border rounded-lg outline-none">
     </div>
 
-    <main class="max-w-4xl mx-auto p-4 py-8">
-        <div class="match-listings-wrapper bg-white shadow-xl rounded-xl overflow-hidden border border-slate-200">
+    <main class="max-w-4xl mx-auto p-4">
+        <div class="match-listings-wrapper bg-white shadow-xl rounded-xl overflow-hidden border">
             {{MATCH_LISTING}}
         </div>
     </main>
 
-    <footer style="background:#002d56; color:#94a3b8; padding:60px 20px; text-align:center; font-size:12px; font-weight: 600;">
-        <div class="max-w-4xl mx-auto">
-            &copy; 2026 TV.CRICFOOT.NET - OFFICIAL BROADCAST GUIDE
-        </div>
-    </footer>
-
     <script>
-        function convertLocalTimes() {
-            document.querySelectorAll('.local-time').forEach(el => {
-                const unix = el.getAttribute('data-unix');
+        // INSTANT CONVERSION LOGIC
+        function convert() {
+            const elements = document.querySelectorAll('.local-time');
+            for (let i = 0; i < elements.length; i++) {
+                const unix = elements[i].getAttribute('data-unix');
                 if (unix) {
                     const date = new Date(unix * 1000);
-                    el.innerText = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    elements[i].innerText = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                 }
-            });
+            }
         }
+        
+        // Run immediately as script is parsed
+        convert();
+        // Run again when DOM is fully ready to catch any missed elements
+        document.addEventListener('DOMContentLoaded', convert);
 
+        // Search logic
         document.getElementById('matchSearch').addEventListener('input', function(e) {
             let term = e.target.value.toLowerCase();
             document.querySelectorAll('.match-row').forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(term) ? 'flex' : 'none';
-            });
-            
-            // Hide league headers if no matches visible
-            document.querySelectorAll('.league-header').forEach(header => {
-                let next = header.nextElementSibling;
-                let hasVisible = false;
-                while (next && next.classList.contains('match-row')) {
-                    if (next.style.display !== 'none') hasVisible = true;
-                    next = next.nextElementSibling;
-                }
-                header.style.display = hasVisible ? 'block' : 'none';
+                row.style.display = row.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
             });
         });
-
-        window.onload = convertLocalTimes;
     </script>
 </body>
 </html>
