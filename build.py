@@ -1,79 +1,68 @@
-import json, os, re, glob
+import json, os, re, glob, logging
 from datetime import datetime, timedelta
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 # --- CONFIG ---
 DOMAIN = "https://tv.cricfoot.net"
-NOW = datetime.now()
-TODAY_DATE = NOW.date()
+INPUT_FOLDER = "date"
+OUTPUT_FOLDER = "public"
+# Add your priority league names or IDs here
+TOP_LEAGUES = ["Serie A", "Premier League"] # You mentioned League 23 and 17
 
-# Find Monday of this week
-START_WEEK = TODAY_DATE - timedelta(days=TODAY_DATE.weekday())
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-def slugify(t): return re.sub(r'[^a-z0-9]+', '-', t.lower()).strip('-')
+class SoccerGenerator:
+    def __init__(self):
+        self.matches = []
+        self.sitemap_urls = [f"{DOMAIN}/"]
+        if not os.path.exists(OUTPUT_FOLDER): os.makedirs(OUTPUT_FOLDER)
 
-# 1. LOAD DATA
-all_matches = {}
-for f_path in glob.glob("date/*.json"):
-    try:
-        with open(f_path, 'r', encoding='utf-8') as f:
-            for m in json.load(f):
-                uid = f"{m['fixture']}-{m['kickoff']}"
-                if uid not in all_matches: all_matches[uid] = m
-    except: pass
+    def slugify(self, text):
+        return re.sub(r'[^a-z0-9]+', '-', str(text).lower()).strip('-')
 
-with open('home_template.html', 'r') as f: home_temp = f.read()
-with open('match_template.html', 'r') as f: match_temp = f.read()
-with open('channel_template.html', 'r') as f: chan_temp = f.read()
+    def run(self):
+        # Load your template
+        with open('home_template.html', 'r', encoding='utf-8') as f:
+            home_t = f.read()
 
-# 2. GENERATE WEEKLY MENU
-menu_html = ""
-for i in range(7):
-    day_dt = START_WEEK + timedelta(days=i)
-    fname = "index.html" if day_dt == TODAY_DATE else f"day-{day_dt.strftime('%Y%m%d')}.html"
-    active = "border-b-4 border-[#00a0e9] text-white" if day_dt == TODAY_DATE else "text-slate-400"
-    
-    menu_html += f'''
-    <a href="{DOMAIN}/{fname}" class="flex-1 min-w-[100px] text-center py-4 px-2 hover:bg-slate-800 transition {active}">
-        <div class="text-[10px] uppercase font-bold">{day_dt.strftime('%A')}</div>
-        <div class="text-sm font-black">{day_dt.strftime('%b %d')}</div>
-    </a>'''
+        # Load Match Data
+        for f_path in glob.glob(f"{INPUT_FOLDER}/*.json"):
+            with open(f_path, 'r', encoding='utf-8') as f:
+                self.matches.extend(json.load(f))
 
-# 3. GENERATE ALL DAYS
-for i in range(7):
-    current_gen_date = START_WEEK + timedelta(days=i)
-    filename = "index.html" if current_gen_date == TODAY_DATE else f"day-{current_gen_date.strftime('%Y%m%d')}.html"
-    
-    # Group matches by league
-    grouped = {}
-    day_matches = [m for m in all_matches.values() if datetime.fromtimestamp(m['kickoff']).date() == current_gen_date]
-    day_matches.sort(key=lambda x: x['kickoff'])
-    
-    for m in day_matches:
-        league = m.get('league', 'World Football')
-        grouped.setdefault(league, []).append(m)
+        # Sort Logic: Top Leagues First, then Kickoff Time
+        # We use a tuple (is_not_top_league, kickoff_time) for sorting
+        self.matches.sort(key=lambda x: (x.get('league') not in TOP_LEAGUES, x['kickoff']))
 
-    # Build HTML List
-    listing_html = ""
-    for league, matches in grouped.items():
-        listing_html += f'<div class="league-header">{league}</div>'
-        for mx in matches:
-            t = datetime.fromtimestamp(mx['kickoff']).strftime('%H:%M')
-            url = f"{DOMAIN}/match/{slugify(mx['fixture'])}/{datetime.fromtimestamp(mx['kickoff']).strftime('%Y%m%d')}/"
+        # Generate the Listing
+        listing_html = ""
+        current_league = ""
+        
+        for m in self.matches:
+            if m['league'] != current_league:
+                listing_html += f'<div class="league-header">{m["league"]}</div>'
+                current_league = m['league']
+            
+            m_time = datetime.fromtimestamp(m['kickoff']).strftime('%H:%M')
+            m_slug = self.slugify(m['fixture'])
+            date_id = datetime.fromtimestamp(m['kickoff']).strftime('%Y%m%d')
+            
             listing_html += f'''
-            <a href="{url}" class="match-row">
-                <div class="match-time">{t}</div>
-                <div class="match-info">{mx['fixture']}</div>
+            <a href="{DOMAIN}/match/{m_slug}/{date_id}/" class="match-row">
+                <div class="match-time">{m_time}</div>
+                <div class="match-info">{m['fixture']}</div>
             </a>'''
 
-    if not day_matches:
-        listing_html = '<div class="p-20 text-center font-bold text-slate-400">NO MATCHES SCHEDULED FOR THIS DATE</div>'
+        # Fill Template
+        final_html = home_t.replace("{{DOMAIN}}", DOMAIN)\
+                           .replace("{{MATCH_LISTING}}", listing_html)\
+                           .replace("{{PAGE_TITLE}}", "Today's Live Football")\
+                           .replace("{{WEEKLY_MENU}}", "") # Add menu logic as needed
 
-    page_title = f"Live Soccer TV Guide - {current_gen_date.strftime('%A, %b %d')}"
-    final_page = home_temp.replace("{{MATCH_LISTING}}", listing_html)\
-                          .replace("{{WEEKLY_MENU}}", menu_html)\
-                          .replace("{{PAGE_TITLE}}", page_title)\
-                          .replace("{{DOMAIN}}", DOMAIN)
-    
-    with open(filename, "w") as f: f.write(final_page)
+        with open(os.path.join(OUTPUT_FOLDER, "index.html"), "w", encoding='utf-8') as f:
+            f.write(final_html)
+            
+        logging.info("Build Successful: index.html generated with Top League priority.")
 
-print(f"✅ Full Week Generated starting from Monday {START_WEEK}")
+if __name__ == "__main__":
+    SoccerGenerator().run()
