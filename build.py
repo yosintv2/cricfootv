@@ -6,7 +6,7 @@ from datetime import datetime
 with open('matches.json', 'r') as f:
     matches = json.load(f)
 
-# The HTML template for the Match Detail pages
+# The HTML template for the Match Detail pages 
 TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
