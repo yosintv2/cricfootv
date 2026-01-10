@@ -2,7 +2,7 @@ import json, os
 from datetime import datetime
 
 # CONFIG
-DOMAIN = "https://yourdomain.com" # Change this!
+DOMAIN = "https://tv.cricfoot.net" # Change this!
 
 with open('matches.json', 'r') as f:
     matches = json.load(f)
