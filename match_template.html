@@ -1,31 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
     <title>{{FIXTURE}} Live TV | tv.cricfoot.net</title>
+    <link rel="stylesheet" href="http://cdn.livesoccertv.com/styles.css?v=267" type="text/css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
-        body { background: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .channel-pill { background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; border: 1px solid #bae6fd; text-decoration: none; }
-    </style>
 </head>
-<body>
-    <header class="bg-[#001529] p-4"><a href="{{DOMAIN}}/" class="text-white text-xl font-black italic uppercase">CRICFOOT<span class="text-[#00a0e9]">TV</span></a></header>
-    <div class="bg-white border-b border-slate-200 py-10 px-4 text-center">
-        <div class="text-[#00a0e9] font-bold text-[10px] uppercase mb-2 tracking-widest">{{LEAGUE}}</div>
-        <h1 class="text-3xl font-black uppercase text-slate-800 mb-4">{{FIXTURE}}</h1>
-        <div class="flex justify-center gap-6 text-xs font-bold text-slate-500 uppercase">
-            <span>🕒 Kickoff: <b class="text-slate-800">{{TIME}}</b></span>
-            <span>🏟️ Stadium: <b class="text-slate-800">{{VENUE}}</b></span>
-        </div>
+<body class="match-details-page">
+    <header style="background:#002d56; padding: 15px;"><a href="{{DOMAIN}}/" style="color:#fff; font-weight:900;">CRICFOOTTV</a></header>
+    
+    <div class="match-hero p-10 bg-gray-900 text-white text-center">
+        <div class="text-orange-400 font-bold uppercase text-xs mb-2">{{LEAGUE}}</div>
+        <h1 class="text-4xl font-extrabold mb-4">{{FIXTURE}}</h1>
+        <div class="text-sm opacity-70">🕒 Kickoff: {{TIME}} | 🏟️ Venue: {{VENUE}}</div>
     </div>
-    <main class="max-w-3xl mx-auto p-4 py-10">
-        <h2 class="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Official Broadcasters</h2>
-        <div class="bg-white border border-slate-200 rounded shadow-sm divide-y divide-slate-100">
+
+    <div class="container mx-auto py-10 max-w-4xl">
+        <h3 class="font-bold border-b-2 border-orange-400 pb-2 mb-6 uppercase text-sm">International Broadcasters</h3>
+        <div class="broadcaster-table bg-white shadow-lg rounded">
             {{BROADCAST_ROWS}}
         </div>
-    </main>
-    <footer class="bg-[#001529] p-10 text-center text-slate-500 text-[10px] font-bold uppercase">&copy; 2026 TV.CRICFOOT.NET</footer>
+    </div>
+
+    <footer style="background:#002d56; color:#999; padding:30px; text-align:center;">&copy; 2026 TV.CRICFOOT.NET</footer>
 </body>
 </html>
