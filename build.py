@@ -2,7 +2,7 @@ import json, os, re
 from datetime import datetime
 
 # --- CONFIG ---
-DOMAIN = "https://yourdomain.com"
+DOMAIN = "https://tv.cricfoot.net"
 
 with open('matches.json', 'r') as f: matches = json.load(f)
 with open('home_template.html', 'r') as f: home_temp = f.read()
