@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><title>{{CHANNEL_NAME}} Schedule</title>
-    <link rel="stylesheet" href="http://cdn.livesoccertv.com/styles.css?v=267">
+    <meta charset="UTF-8">
+    <title>{{CHANNEL_NAME}} Schedule | tv.cricfoot.net</title>
+    <link rel="stylesheet" href="http://cdn.livesoccertv.com/styles.css?v=267" type="text/css">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100">
-    <header class="bg-[#001529] p-4"><a href="{{DOMAIN}}/" class="text-white font-black">CRICFOOTTV</a></header>
-    <div class="bg-blue-900 text-white text-center py-20">
-        <h1 class="text-5xl font-black italic">{{CHANNEL_NAME}}</h1>
-        <p class="mt-4 text-blue-300 uppercase text-xs font-bold tracking-widest">Official Football TV Schedule</p>
+<body>
+    <header style="background:#002d56; padding: 15px;"><a href="{{DOMAIN}}/" style="color:#fff; font-weight:900;">CRICFOOTTV</a></header>
+    <div class="bg-blue-900 py-16 text-center text-white">
+        <h1 class="text-5xl font-black">{{CHANNEL_NAME}}</h1>
     </div>
-    <div class="max-w-3xl mx-auto bg-white mt-10 shadow-2xl rounded-lg overflow-hidden border">
-        {{LISTING}}
-    </div>
+    <main class="container mx-auto py-10 max-w-5xl">
+        <div class="match-list-container bg-white rounded shadow-md">
+            {{MATCH_LISTING}}
+        </div>
+    </main>
+    <footer style="background:#002d56; color:#999; padding:30px; text-align:center;">&copy; 2026 TV.CRICFOOT.NET</footer>
 </body>
 </html>
