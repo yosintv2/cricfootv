@@ -2,20 +2,28 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Live Soccer TV - Football Broadcast Guide</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Soccer TV Guide - Football Broadcasts</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #e5e7eb; font-family: 'Inter', sans-serif; }
-        .nav-blue { background: #001529; border-bottom: 3px solid #00a0e9; }
-        .league-head { background: #333; color: white; padding: 6px 12px; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; }
-        .match-row { background: white; border-bottom: 1px solid #ddd; display: flex; align-items: center; padding: 10px; font-size: 0.85rem; text-decoration: none; color: inherit; }
-        .match-row:hover { background: #f0f9ff; }
+        body { background: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .nav-gradient { background: linear-gradient(90deg, #001529 0%, #004d99 100%); border-bottom: 2px solid #38bdf8; }
+        .league-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+        .league-header { background: #334155; padding: 10px 16px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .match-row { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #334155; transition: 0.2s; text-decoration: none; color: inherit; }
+        .match-row:hover { background: #334155; }
+        .match-time { width: 70px; font-weight: 700; color: #38bdf8; font-size: 0.85rem; }
+        .match-fixture { font-weight: 600; font-size: 0.95rem; }
     </style>
 </head>
 <body>
-    <nav class="nav-blue p-4 text-white"><div class="max-w-5xl mx-auto"><h1 class="text-2xl font-black italic uppercase">LIVE<span class="text-sky-400">SOCCER</span>TV</h1></div></nav>
-    <main class="max-w-5xl mx-auto p-4 lg:p-6">
-        <h2 class="text-lg font-bold mb-4 text-[#004d99]">Live Football Schedule</h2>
+    <nav class="nav-gradient p-4 sticky top-0 z-50 shadow-2xl">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <a href="/" class="text-2xl font-black italic tracking-tighter">LIVE<span class="text-sky-400">SOCCER</span>TV</a>
+        </div>
+    </nav>
+    <main class="max-w-5xl mx-auto p-4 lg:p-10">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2"><span class="w-2 h-6 bg-sky-500 rounded-full"></span> Upcoming Live Matches</h2>
         {{MATCH_LISTING}}
     </main>
 </body>
