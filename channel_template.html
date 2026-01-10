@@ -1,7 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    </head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}} | LiveSoccerTV</title>
+<meta name="keywords" content="live soccer tv, football on tv, soccer broadcast, watch football live, {{FIXTURE}}, {{CHANNEL_NAME}}">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+    body { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; }
+    .nav-top { background-color: #001529; }
+    .nav-leagues { background-color: #001e3c; border-bottom: 4px solid #00a0e9; }
+    .league-title { background: #334155; color: white; padding: 8px 15px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px 4px 0 0; }
+    .match-card { background: white; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; padding: 15px; text-decoration: none; color: inherit; transition: all 0.2s; }
+    .match-card:hover { background: #f1f5f9; border-left: 4px solid #00a0e9; }
+    .time-col { width: 60px; font-weight: 800; color: #00a0e9; font-size: 0.9rem; }
+    /* Match Page Table */
+    .row { display: grid; grid-template-columns: 1fr; border-bottom: 1px solid #e2e8f0; background: white; }
+    @media (min-width: 768px) { .row { grid-template-columns: 30% 70%; } }
+    .c-name { background: #f1f5f9; padding: 12px 20px; font-weight: 800; font-size: 0.8rem; border-right: 1px solid #e2e8f0; }
+    .ch-list { padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+    .pill:hover { background: #00a0e9; color: white; }
+</style>
+</head>
 <body>
     <header class="nav-top p-4">
         <div class="max-w-5xl mx-auto"><a href="/" class="text-white text-2xl font-black italic uppercase">LIVE<span class="text-[#00a0e9]">SOCCER</span>TV</a></div>
