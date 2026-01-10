@@ -5,8 +5,10 @@ DOMAIN = "https://tv.cricfoot.net"
 NOW = datetime.now()
 TODAY_DATE = NOW.date()
 
+# Priority League IDs for Serie A and Premier League
+TOP_LEAGUE_IDS = [23, 17]
+
 # Friday to Thursday Logic
-# 4 is Friday. Calculate how many days to subtract to reach the most recent Friday.
 days_since_friday = (TODAY_DATE.weekday() - 4) % 7
 START_WEEK = TODAY_DATE - timedelta(days=days_since_friday)
 
@@ -42,7 +44,16 @@ for i in range(7):
     sitemap_urls.append(f"{DOMAIN}/{fname}")
     
     day_matches = [m for m in all_matches if datetime.fromtimestamp(m['kickoff']).date() == day]
-    day_matches.sort(key=lambda x: (x.get('league') != "Premier League", x['kickoff']))
+    
+    # UPDATED SORTING LOGIC: 
+    # 1. Check if league_id is 23 or 17 (0 = Yes, 1 = No)
+    # 2. Check match_id (lower IDs or specific order if needed)
+    # 3. Kickoff time
+    day_matches.sort(key=lambda x: (
+        x.get('league_id') not in TOP_LEAGUE_IDS, 
+        x.get('match_id', 99999999), 
+        x['kickoff']
+    ))
 
     listing_html, last_league = "", ""
     for m in day_matches:
