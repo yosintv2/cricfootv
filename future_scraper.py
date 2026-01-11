@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import pycountry  # <--- New Import
 from datetime import datetime, timedelta
 from curl_cffi.requests import AsyncSession
 
@@ -29,13 +30,19 @@ async def get_tv_data(session, match_id):
         country_channels = res.json().get('countryChannels', {})
         
         for country_code, channel_ids in country_channels.items():
+            # Convert "AD" to "Andorra"
+            try:
+                full_country = pycountry.countries.get(alpha_2=country_code).name
+            except (AttributeError, LookupError):
+                full_country = country_code # Fallback if not found
+
             channel_tasks = [get_channel_name(session, cid) for cid in channel_ids]
             names = await asyncio.gather(*channel_tasks)
             
             clean_names = list(set([n for n in names if n != "Unknown Channel"]))
             
             broadcasters.append({
-                "country": country_code,
+                "country": full_country, # Now using full name
                 "channels": clean_names if clean_names else ["TBA"]
             })
             
@@ -86,13 +93,12 @@ async def process_day(session, days_offset):
         return
 
     print(f"Found {len(events)} fixtures. Resolving TV data...")
-
-    # Process match details in parallel
     tasks = [fetch_match_details(session, event['id']) for event in events]
     results = await asyncio.gather(*tasks)
     
     final_data = [r for r in results if r is not None]
 
+    if not os.path.exists('date'): os.makedirs('date')
     save_path = os.path.join("date", file_name)
     with open(save_path, "w", encoding="utf-8") as f:
         json.dump(final_data, f, indent=4)
@@ -100,13 +106,10 @@ async def process_day(session, days_offset):
     print(f"DONE: Generated {save_path}")
 
 async def main():
-    if not os.path.exists('date'): os.makedirs('date')
-
     async with AsyncSession() as session:
         # Loop through Tomorrow (1), Day After (2), and 3 Days Later (3)
         for offset in [1, 2, 3]:
             await process_day(session, offset)
-            # 1 second delay between days to prevent IP flagging
             await asyncio.sleep(1)
 
 if __name__ == "__main__":
