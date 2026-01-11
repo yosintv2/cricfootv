@@ -1,95 +1,79 @@
 const fs = require('fs');
 const path = require('path');
 
-const HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Accept": "*/*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://www.sofascore.com/",
-    "Origin": "https://www.sofascore.com",
-    "Cache-Control": "no-cache",
-    "Pragma": "no-cache",
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-site"
-};
+// A list of real-world browser User-Agents to rotate
+const USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+];
+
+function getHeaders() {
+    return {
+        "User-Agent": USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Referer": "https://www.sofascore.com/",
+        "Origin": "https://www.sofascore.com",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-site",
+        "If-None-Match": 'W/"' + Math.random().toString(36).substring(2, 12) + '"' // Randomize Cache tag
+    };
+}
 
 const getTomorrowDate = () => {
     const d = new Date();
-    d.setDate(d.getDate() + 1); // Get tomorrow
+    d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
 };
 
-async function fetchWithRetry(url, retries = 3) {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const response = await fetch(url, { headers: HEADERS });
-            if (response.ok) return await response.json();
-            if (response.status === 403) console.log(`[403] Blocked on: ${url}`);
-        } catch (e) {
-            console.log(`Error fetching ${url}: ${e.message}`);
+async function fetchWithStealth(url) {
+    try {
+        const response = await fetch(url, { headers: getHeaders() });
+        if (response.status === 403) {
+            console.error(`[!] 403 Forbidden at ${url}. Bot detection is active.`);
+            return null;
         }
-        await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
+        return response.ok ? await response.json() : null;
+    } catch (e) {
+        return null;
     }
-    return null;
 }
 
 async function run() {
     const date = getTomorrowDate();
-    const fileName = date.replace(/-/g, '') + '.json';
+    const fileName = `${date.replace(/-/g, '')}.json`;
     const dir = './date';
+
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    console.log(`Targeting Date: ${date}`);
+    console.log(`🚀 Starting Stealth Fetch for: ${date}`);
+
+    // SofaScore often uses the 'inverse' URL for certain regions/servers
+    let data = await fetchWithStealth(`https://api.sofascore.com/api/v1/sport/football/scheduled-events/${date}`);
     
-    // Attempt 1: Standard endpoint
-    let data = await fetchWithRetry(`https://api.sofascore.com/api/v1/sport/football/scheduled-events/${date}`);
-    
-    // Attempt 2: Inverse endpoint (Fallback)
-    if (!data || !data.events || data.events.length === 0) {
-        console.log("Standard feed empty, trying inverse...");
-        data = await fetchWithRetry(`https://api.sofascore.com/api/v1/sport/football/scheduled-events/${date}/inverse`);
+    if (!data || !data.events) {
+        console.log("[-] Primary feed blocked/empty. Trying Fallback...");
+        data = await fetchWithStealth(`https://api.sofascore.com/api/v1/sport/football/scheduled-events/${date}/inverse`);
     }
 
     if (!data || !data.events || data.events.length === 0) {
-        console.log("❌ CRITICAL: No events found on either endpoint. SofaScore may have blocked this IP.");
-        return;
+        console.error("❌ Still Blocked. GitHub IP is likely blacklisted by SofaScore.");
+        process.exit(1);
     }
 
-    const events = data.events;
-    console.log(`Found ${events.length} events. Fetching details...`);
-
-    const results = [];
-    // We only process the first 30 to stay under the radar for now
-    for (const event of events.slice(0, 30)) {
-        const tvData = await fetchWithRetry(`https://api.sofascore.com/api/v1/tv/event/${event.id}/country-channels`);
-        
-        let broadcasters = [];
-        if (tvData?.countryChannels) {
-            for (const code of Object.keys(tvData.countryChannels)) {
-                const channels = await Promise.all(tvData.countryChannels[code].map(async (chId) => {
-                    const ch = await fetchWithRetry(`https://api.sofascore.com/api/v1/tv/channel/${chId}/schedule`);
-                    return ch?.channel?.name || null;
-                }));
-                const valid = channels.filter(c => c !== null);
-                if (valid.length > 0) broadcasters.push({ country: code, channels: valid });
-            }
-        }
-
-        results.push({
-            match_id: event.id,
-            kickoff: event.startTimestamp,
-            fixture: `${event.homeTeam.name} vs ${event.awayTeam.name}`,
-            league: event.tournament.name,
-            tv_channels: broadcasters
-        });
-        
-        console.log(`✓ Scraped: ${event.homeTeam.name}`);
-        await new Promise(r => setTimeout(r, 1000)); // Be gentle
-    }
+    const results = data.events.map(ev => ({
+        match_id: ev.id,
+        kickoff: ev.startTimestamp,
+        fixture: `${ev.homeTeam.name} vs ${ev.awayTeam.name}`,
+        league: ev.tournament.name
+    }));
 
     fs.writeFileSync(path.join(dir, fileName), JSON.stringify(results, null, 4));
-    console.log(`✅ Success! Saved to date/${fileName}`);
+    console.log(`✅ Success! Saved ${results.length} matches to date/${fileName}`);
 }
 
 run();
