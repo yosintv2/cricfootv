@@ -125,7 +125,7 @@ for i in range(7):
         output = output.replace("{{WEEKLY_MENU}}", current_page_menu)
         output = output.replace("{{DOMAIN}}", DOMAIN)
         output = output.replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
-        output = output.replace("{{PAGE_TITLE}}", f"TV Schedule for {day.strftime('%A, %b %d')}")
+        output = output.replace("{{PAGE_TITLE}}", f"Football Live TV & TV Channels for {day.strftime('%A, %b %d')}")
         df.write(output)
 
 # --- 5. GENERATE CHANNEL PAGES ---
