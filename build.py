@@ -5,7 +5,7 @@ DOMAIN = "https://tv.cricfoot.net"
 NOW = datetime.now()
 TODAY_DATE = NOW.date()
 
-TOP_LEAGUE_IDS = [23, 17]
+TOP_LEAGUE_IDS = [7, 35, 23, 17]
 
 # Friday to Thursday Logic
 days_since_friday = (TODAY_DATE.weekday() - 4) % 7
