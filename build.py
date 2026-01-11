@@ -51,7 +51,7 @@ for i in range(7):
     if fname != "index.html":
         sitemap_urls.append(f"{DOMAIN}/{fname}")
 
-    # Build DYNAMIC MENU (This page gets the 'active' class)
+    # Build DYNAMIC MENU (The button for THIS page gets the 'active' class)
     current_page_menu = ""
     for j in range(7):
         m_day = START_WEEK + timedelta(days=j)
@@ -59,13 +59,13 @@ for i in range(7):
         active_class = "active" if m_day == day else ""
         current_page_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn {active_class}"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
 
-    # Filter and sort matches for this day
+    # Filter and sort matches for this specific day
     day_matches = [m for m in all_matches if datetime.fromtimestamp(m['kickoff']).date() == day]
     day_matches.sort(key=lambda x: (x.get('league_id') not in TOP_LEAGUE_IDS, x.get('match_id', 999999), x['kickoff']))
 
     listing_html, last_league = "", ""
     for m in day_matches:
-        league = m.get('league', 'Other')
+        league = m.get('league', 'Other Football')
         if league != last_league:
             listing_html += f'<div class="league-header">{league}</div>'
             last_league = league
@@ -86,9 +86,13 @@ for i in range(7):
             </div>
         </a>'''
         
-        # --- 4. GENERATE MATCH PAGES ---
+        # --- 4. GENERATE MATCH PAGES (Subfolders) ---
         m_path = f"match/{m_slug}/{m_date}"
         os.makedirs(m_path, exist_ok=True)
+        
+        # Fix Venue Replacement
+        venue_name = m.get('venue', 'To Be Announced')
+        
         rows = ""
         for c in m.get('tv_channels', []):
             pills = ""
@@ -106,18 +110,22 @@ for i in range(7):
             rows += f'<div class="flex justify-between p-4 border-b"><b>{c["country"]}</b><div>{pills}</div></div>'
 
         with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
-            mf.write(templates['match'].replace("{{FIXTURE}}", m['fixture'])
-                     .replace("{{TIME}}", str(m['kickoff']))
-                     .replace("{{DOMAIN}}", DOMAIN).replace("{{BROADCAST_ROWS}}", rows)
-                     .replace("{{LEAGUE}}", league).replace("{{DATE}}", day.strftime('%d %b %Y')))
+            match_html = templates['match'].replace("{{FIXTURE}}", m['fixture'])
+            match_html = match_html.replace("{{TIME}}", str(m['kickoff']))
+            match_html = match_html.replace("{{VENUE}}", venue_name)
+            match_html = match_html.replace("{{DOMAIN}}", DOMAIN)
+            match_html = match_html.replace("{{BROADCAST_ROWS}}", rows)
+            match_html = match_html.replace("{{LEAGUE}}", league)
+            match_html = match_html.replace("{{DATE}}", day.strftime('%d %b %Y'))
+            mf.write(match_html)
 
-    # Write the Daily/Home HTML
+    # Write the Final Daily/Home HTML
     with open(fname, "w", encoding='utf-8') as df:
         output = templates['home'].replace("{{MATCH_LISTING}}", listing_html)
         output = output.replace("{{WEEKLY_MENU}}", current_page_menu)
         output = output.replace("{{DOMAIN}}", DOMAIN)
         output = output.replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
-        output = output.replace("{{PAGE_TITLE}}", f"Soccer TV Schedule {day.strftime('%Y-%m-%d')}")
+        output = output.replace("{{PAGE_TITLE}}", f"TV Schedule for {day.strftime('%A, %b %d')}")
         df.write(output)
 
 # --- 5. GENERATE CHANNEL PAGES ---
@@ -126,7 +134,7 @@ for ch_name, ms in channels_data.items():
     c_dir = f"channel/{c_slug}"
     os.makedirs(c_dir, exist_ok=True)
     
-    # Generic menu for channel pages (no active day)
+    # Static menu for channel pages
     channel_menu = "".join([f'<a href="{DOMAIN}/{"index.html" if (START_WEEK + timedelta(days=j)) == TODAY_DATE else (START_WEEK + timedelta(days=j)).strftime("%Y-%m-%d") + ".html"}" class="date-btn"><div>{(START_WEEK + timedelta(days=j)).strftime("%a")}</div><b>{(START_WEEK + timedelta(days=j)).strftime("%b %d")}</b></a>' for j in range(7)])
 
     c_listing = ""
@@ -144,18 +152,19 @@ for ch_name, ms in channels_data.items():
         </a>'''
 
     with open(f"{c_dir}/index.html", "w", encoding='utf-8') as cf:
-        cf.write(templates['channel'].replace("{{CHANNEL_NAME}}", ch_name)
-                 .replace("{{MATCH_LISTING}}", c_listing)
-                 .replace("{{WEEKLY_MENU}}", channel_menu)
-                 .replace("{{DOMAIN}}", DOMAIN))
+        chan_html = templates['channel'].replace("{{CHANNEL_NAME}}", ch_name)
+        chan_html = chan_html.replace("{{MATCH_LISTING}}", c_listing)
+        chan_html = chan_html.replace("{{WEEKLY_MENU}}", channel_menu)
+        chan_html = chan_html.replace("{{DOMAIN}}", DOMAIN)
+        cf.write(chan_html)
 
-# --- 6. GENERATE SITEMAP.XML ---
+# --- 6. SITEMAP GENERATION ---
 sitemap_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
 for url in sitemap_urls:
-    sitemap_content += f'<url><loc>{url}</loc><lastmod>{NOW.strftime("%Y-%m-%d")}</lastmod><changefreq>daily</changefreq></url>'
+    sitemap_content += f'<url><loc>{url}</loc><lastmod>{NOW.strftime("%Y-%m-%d")}</lastmod></url>'
 sitemap_content += '</urlset>'
 
 with open("sitemap.xml", "w", encoding='utf-8') as sm:
     sm.write(sitemap_content)
 
-print(f"Build Complete. Found {len(all_matches)} matches.")
+print(f"Build Successful. Created sitemap with {len(sitemap_urls)} URLs.")
