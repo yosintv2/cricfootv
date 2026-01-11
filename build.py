@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 # --- CONFIGURATION ---
 DOMAIN = "https://tv.cricfoot.net"
+# Standardizing to UTC to ensure date transitions are consistent
 NOW = datetime.now(timezone.utc)
 TODAY_DATE = NOW.date()
 
@@ -62,7 +63,7 @@ for i in range(7):
     if fname != "index.html":
         sitemap_urls.append(f"{DOMAIN}/{fname}")
 
-    # Build Dynamic Menu
+    # Build Menu
     current_page_menu = ""
     for j in range(7):
         m_day = START_WEEK + timedelta(days=j)
@@ -70,7 +71,7 @@ for i in range(7):
         active_class = "active" if m_day == day else ""
         current_page_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn {active_class}"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
 
-    # Filter matches using UTC to ensure correct day grouping (Fixes Jan 11/12 issue)
+    # THE CRITICAL FIX: Group by the match's REAL calendar date
     day_matches = []
     for m in all_matches:
         m_dt = datetime.fromtimestamp(int(m['kickoff']), timezone.utc)
@@ -95,19 +96,19 @@ for i in range(7):
         m_url = f"{DOMAIN}/match/{m_slug}/{m_date_folder}/"
         sitemap_urls.append(m_url)
         
-        # DISPLAY FULL DATE AND TIME IN LISTING
+        # Displaying Date and Time on separate lines in the time-box
         listing_html += f'''
         <a href="{m_url}" class="match-row flex items-center p-4 bg-white group">
-            <div class="time-box" style="min-width: 100px; display: flex; flex-direction: column; justify-content: center; text-align: center; border-right: 1px solid #edf2f7;">
+            <div class="time-box" style="min-width: 95px; text-align: center; border-right: 1px solid #edf2f7; margin-right: 10px;">
                 <div class="text-[10px] uppercase text-slate-400 font-bold local-date" data-unix="{m['kickoff']}">{m_dt.strftime('%d %b')}</div>
                 <div class="font-bold text-blue-600 text-sm local-time" data-unix="{m['kickoff']}">{m_dt.strftime('%H:%M')}</div>
             </div>
-            <div class="flex-1 px-4">
+            <div class="flex-1">
                 <span class="text-slate-800 font-semibold text-sm md:text-base">{m['fixture']}</span>
             </div>
         </a>'''
 
-        # --- 4. GENERATE MATCH PAGES ---
+        # --- 4. MATCH PAGES ---
         m_path = f"match/{m_slug}/{m_date_folder}"
         os.makedirs(m_path, exist_ok=True)
         venue_name = m.get('venue', 'To Be Announced')
@@ -136,7 +137,6 @@ for i in range(7):
         output = output.replace("{{WEEKLY_MENU}}", current_page_menu)
         output = output.replace("{{DOMAIN}}", DOMAIN)
         output = output.replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
-        # PAGE TITLE FIX
         output = output.replace("{{PAGE_TITLE}}", f"SocccerTV Live Streaming TV Channels For {day.strftime('%A, %b %d, %Y')} - CricFootTV")
         df.write(output)
 
@@ -150,7 +150,7 @@ for ch_name, ms in channels_data.items():
         x_dt = datetime.fromtimestamp(x['kickoff'], timezone.utc)
         c_listing += f'''
         <a href="{DOMAIN}/match/{slugify(x['fixture'])}/{x_dt.strftime('%Y%m%d')}/" class="match-row flex items-center p-4 bg-white">
-            <div class="time-box" style="min-width: 100px; text-align: center;">
+            <div class="time-box" style="min-width: 95px; text-align: center;">
                 <div class="text-[10px] text-slate-400 font-bold local-date" data-unix="{x['kickoff']}">{x_dt.strftime('%d %b')}</div>
                 <div class="local-time font-bold text-blue-600" data-unix="{x['kickoff']}">{x_dt.strftime('%H:%M')}</div>
             </div>
@@ -169,4 +169,4 @@ sitemap_content += '</urlset>'
 with open("sitemap.xml", "w", encoding='utf-8') as sm:
     sm.write(sitemap_content)
 
-print(f"Build Successful. Created sitemap with {len(sitemap_urls)} URLs.")
+print(f"Build Successful. Matches now grouped by calendar date.")
