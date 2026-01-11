@@ -3,8 +3,12 @@ from datetime import datetime, timedelta, timezone
 
 # --- CONFIGURATION ---
 DOMAIN = "https://tv.cricfoot.net"
-# Standardizing to UTC to ensure date transitions are consistent
-NOW = datetime.now(timezone.utc)
+
+# 1. SET YOUR TARGET TIMEZONE OFFSET (e.g., GMT+5 for Pakistan/India area)
+# Change the '5' to your specific local offset
+OFFSET = timezone(timedelta(hours=5)) 
+
+NOW = datetime.now(OFFSET)
 TODAY_DATE = NOW.date()
 
 # Friday to Thursday Logic
@@ -12,19 +16,6 @@ days_since_friday = (TODAY_DATE.weekday() - 4) % 7
 START_WEEK = TODAY_DATE - timedelta(days=days_since_friday)
 
 TOP_LEAGUE_IDS = [7, 35, 23, 17]
-
-# YOUR SPECIFIC AD UNIT
-AD_CODE = '''
-<div class="ad-container py-4 bg-slate-50 border-b border-slate-200">
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="ca-pub-5525538810839147"
-         data-ad-slot="4345862479"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-</div>
-'''
 
 def slugify(t): 
     return re.sub(r'[^a-z0-9]+', '-', str(t).lower()).strip('-')
@@ -35,8 +26,8 @@ for name in ['home', 'match', 'channel']:
     try:
         with open(f'{name}_template.html', 'r', encoding='utf-8') as f:
             templates[name] = f.read()
-    except FileNotFoundError:
-        print(f"CRITICAL ERROR: {name}_template.html not found.")
+    except:
+        print(f"ERROR: {name}_template.html missing")
 
 # --- 2. LOAD DATA ---
 all_matches = []
@@ -63,7 +54,6 @@ for i in range(7):
     if fname != "index.html":
         sitemap_urls.append(f"{DOMAIN}/{fname}")
 
-    # Build Menu
     current_page_menu = ""
     for j in range(7):
         m_day = START_WEEK + timedelta(days=j)
@@ -71,37 +61,34 @@ for i in range(7):
         active_class = "active" if m_day == day else ""
         current_page_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn {active_class}"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
 
-    # THE CRITICAL FIX: Group by the match's REAL calendar date
+    # FIX: Filter matches by the TARGET LOCAL TIME, not UTC
     day_matches = []
     for m in all_matches:
-        m_dt = datetime.fromtimestamp(int(m['kickoff']), timezone.utc)
-        if m_dt.date() == day:
+        # Convert Unix to UTC first, then move to your OFFSET
+        m_dt_local = datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(OFFSET)
+        if m_dt_local.date() == day:
             day_matches.append(m)
 
-    day_matches.sort(key=lambda x: (x.get('league_id') not in TOP_LEAGUE_IDS, x.get('league', ''), x['kickoff']))
+    day_matches.sort(key=lambda x: (x.get('league_id') not in TOP_LEAGUE_IDS, x['kickoff']))
 
     listing_html, last_league = "", ""
     for m in day_matches:
         league = m.get('league', 'Other Football')
-        
         if league != last_league:
-            if last_league != "":
-                listing_html += AD_CODE
             listing_html += f'<div class="league-header">{league}</div>'
             last_league = league
         
-        m_dt = datetime.fromtimestamp(int(m['kickoff']), timezone.utc)
+        m_dt_local = datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(OFFSET)
         m_slug = slugify(m['fixture'])
-        m_date_folder = m_dt.strftime('%Y%m%d')
+        m_date_folder = m_dt_local.strftime('%Y%m%d')
         m_url = f"{DOMAIN}/match/{m_slug}/{m_date_folder}/"
         sitemap_urls.append(m_url)
         
-        # Displaying Date and Time on separate lines in the time-box
         listing_html += f'''
         <a href="{m_url}" class="match-row flex items-center p-4 bg-white group">
             <div class="time-box" style="min-width: 95px; text-align: center; border-right: 1px solid #edf2f7; margin-right: 10px;">
-                <div class="text-[10px] uppercase text-slate-400 font-bold local-date" data-unix="{m['kickoff']}">{m_dt.strftime('%d %b')}</div>
-                <div class="font-bold text-blue-600 text-sm local-time" data-unix="{m['kickoff']}">{m_dt.strftime('%H:%M')}</div>
+                <div class="text-[10px] uppercase text-slate-400 font-bold">{m_dt_local.strftime('%d %b')}</div>
+                <div class="font-bold text-blue-600 text-sm">{m_dt_local.strftime('%H:%M')}</div>
             </div>
             <div class="flex-1">
                 <span class="text-slate-800 font-semibold text-sm md:text-base">{m['fixture']}</span>
@@ -111,8 +98,8 @@ for i in range(7):
         # --- 4. MATCH PAGES ---
         m_path = f"match/{m_slug}/{m_date_folder}"
         os.makedirs(m_path, exist_ok=True)
-        venue_name = m.get('venue', 'To Be Announced')
         
+        # Build Broadcast Rows
         rows = ""
         for c in m.get('tv_channels', []):
             pills = "".join([f'<a href="{DOMAIN}/channel/{slugify(ch)}/" class="mx-1 text-blue-600 underline text-xs">{ch}</a>' for ch in c['channels']])
@@ -123,50 +110,19 @@ for i in range(7):
 
         with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
             m_html = templates['match'].replace("{{FIXTURE}}", m['fixture'])
-            m_html = m_html.replace("{{TIME}}", str(m['kickoff']))
-            m_html = m_html.replace("{{VENUE}}", venue_name)
-            m_html = m_html.replace("{{DOMAIN}}", DOMAIN)
+            m_html = m_html.replace("{{DATE}}", m_dt_local.strftime('%d %b %Y'))
+            m_html = m_html.replace("{{TIME}}", m_dt_local.strftime('%H:%M'))
             m_html = m_html.replace("{{BROADCAST_ROWS}}", rows)
-            m_html = m_html.replace("{{LEAGUE}}", league)
-            m_html = m_html.replace("{{DATE}}", m_dt.strftime('%d %b %Y'))
+            m_html = m_html.replace("{{DOMAIN}}", DOMAIN)
             mf.write(m_html)
 
     # WRITE DAILY FILE
     with open(fname, "w", encoding='utf-8') as df:
         output = templates['home'].replace("{{MATCH_LISTING}}", listing_html)
         output = output.replace("{{WEEKLY_MENU}}", current_page_menu)
-        output = output.replace("{{DOMAIN}}", DOMAIN)
         output = output.replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
-        output = output.replace("{{PAGE_TITLE}}", f"SocccerTV Live Streaming TV Channels For {day.strftime('%A, %b %d, %Y')} - CricFootTV")
+        output = output.replace("{{PAGE_TITLE}}", f"Soccer TV Channels For {day.strftime('%A, %b %d, %Y')}")
+        output = output.replace("{{DOMAIN}}", DOMAIN)
         df.write(output)
 
-# --- 5. CHANNEL PAGES ---
-for ch_name, ms in channels_data.items():
-    c_slug = slugify(ch_name)
-    c_dir = f"channel/{c_slug}"
-    os.makedirs(c_dir, exist_ok=True)
-    c_listing = ""
-    for x in ms:
-        x_dt = datetime.fromtimestamp(x['kickoff'], timezone.utc)
-        c_listing += f'''
-        <a href="{DOMAIN}/match/{slugify(x['fixture'])}/{x_dt.strftime('%Y%m%d')}/" class="match-row flex items-center p-4 bg-white">
-            <div class="time-box" style="min-width: 95px; text-align: center;">
-                <div class="text-[10px] text-slate-400 font-bold local-date" data-unix="{x['kickoff']}">{x_dt.strftime('%d %b')}</div>
-                <div class="local-time font-bold text-blue-600" data-unix="{x['kickoff']}">{x_dt.strftime('%H:%M')}</div>
-            </div>
-            <div class="flex-1 px-4">
-                <span class="text-sm font-semibold">{x['fixture']}</span>
-            </div>
-        </a>'''
-    with open(f"{c_dir}/index.html", "w", encoding='utf-8') as cf:
-        cf.write(templates['channel'].replace("{{CHANNEL_NAME}}", ch_name).replace("{{MATCH_LISTING}}", c_listing).replace("{{DOMAIN}}", DOMAIN))
-
-# --- 6. SITEMAP ---
-sitemap_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-for url in sitemap_urls:
-    sitemap_content += f'<url><loc>{url}</loc><lastmod>{NOW.strftime("%Y-%m-%d")}</lastmod></url>'
-sitemap_content += '</urlset>'
-with open("sitemap.xml", "w", encoding='utf-8') as sm:
-    sm.write(sitemap_content)
-
-print(f"Build Successful. Matches now grouped by calendar date.")
+print("Build Successful. Local Time grouping applied.")
