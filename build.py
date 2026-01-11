@@ -3,13 +3,11 @@ from datetime import datetime, timedelta, timezone
 
 # --- CONFIGURATION ---
 DOMAIN = "https://tv.cricfoot.net"
-# Local offset for South Asia (GMT+5) - This acts as a fallback for the static HTML
 LOCAL_OFFSET = timezone(timedelta(hours=5)) 
 
 NOW = datetime.now(LOCAL_OFFSET)
 TODAY_DATE = NOW.date()
 
-# Friday to Thursday Logic
 days_since_friday = (TODAY_DATE.weekday() - 4) % 7
 START_WEEK = TODAY_DATE - timedelta(days=days_since_friday)
 
@@ -50,7 +48,6 @@ for i in range(7):
     fname = "index.html" if day == TODAY_DATE else f"{day.strftime('%Y-%m-%d')}.html"
     if fname != "index.html": sitemap_urls.append(f"{DOMAIN}/{fname}")
 
-    # Build Menu
     current_page_menu = ""
     for j in range(7):
         m_day = START_WEEK + timedelta(days=j)
@@ -58,7 +55,6 @@ for i in range(7):
         active_class = "active" if m_day == day else ""
         current_page_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn {active_class}"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
 
-    # Filter by Local Date
     day_matches = []
     for m in all_matches:
         m_dt_local = datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(LOCAL_OFFSET)
@@ -94,8 +90,6 @@ for i in range(7):
         # --- 4. MATCH PAGES ---
         m_path = f"match/{m_slug}/{m_date_folder}"
         os.makedirs(m_path, exist_ok=True)
-        
-        # Correct Venue Logic
         venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
         
         rows = ""
@@ -109,21 +103,21 @@ for i in range(7):
         with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
             m_html = templates['match'].replace("{{FIXTURE}}", m['fixture']).replace("{{DOMAIN}}", DOMAIN)
             m_html = m_html.replace("{{BROADCAST_ROWS}}", rows).replace("{{LEAGUE}}", league)
-            # FIX: Adding auto-detect spans to Match Detail
-            m_html = m_html.replace("{{DATE}}", f'<span class="auto-date" data-unix="{m["kickoff"]}">{m_dt_local.strftime("%d %b %Y")}</span>')
-            m_html = m_html.replace("{{TIME}}", f'<span class="auto-time" data-unix="{m["kickoff"]}">{m_dt_local.strftime("%H:%M")}</span>')
+            
+            # FIXED: Plain text for safety in headers/meta, plus {{UNIX}} for the JS to find
+            m_html = m_html.replace("{{DATE}}", m_dt_local.strftime("%d %b %Y"))
+            m_html = m_html.replace("{{TIME}}", m_dt_local.strftime("%H:%M"))
             m_html = m_html.replace("{{UNIX}}", str(m['kickoff']))
             m_html = m_html.replace("{{VENUE}}", venue_val) 
             mf.write(m_html)
 
-    # Home/Date Page output
     with open(fname, "w", encoding='utf-8') as df:
         output = templates['home'].replace("{{MATCH_LISTING}}", listing_html).replace("{{WEEKLY_MENU}}", current_page_menu)
         output = output.replace("{{DOMAIN}}", DOMAIN).replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
         output = output.replace("{{PAGE_TITLE}}", f"Soccer TV Channels For {day.strftime('%A, %b %d, %Y')}")
         df.write(output)
 
-# --- 5. FIXED CHANNEL PAGES ---
+# --- 5. FIXED CHANNEL PAGES (No Duplicates) ---
 for ch_name, matches in channels_data.items():
     c_slug = slugify(ch_name)
     c_dir = f"channel/{c_slug}"
@@ -133,12 +127,16 @@ for ch_name, matches in channels_data.items():
     c_listing = ""
     matches.sort(key=lambda x: x['m']['kickoff'])
     
+    seen_channel_matches = set() # Prevent duplicate match rows
     for item in matches:
         m, dt, m_league = item['m'], item['dt'], item['league']
+        mid = m.get('match_id')
+        if mid in seen_channel_matches: continue
+        seen_channel_matches.add(mid)
+
         m_slug = slugify(m['fixture'])
         m_date_folder = dt.strftime('%Y%m%d')
         
-        # Layout matching Home.html exactly
         c_listing += f'''
         <a href="{DOMAIN}/match/{m_slug}/{m_date_folder}/" class="match-row flex items-center p-4 bg-white border-b group">
             <div class="time-box" style="min-width: 95px; text-align: center; border-right: 1px solid #edf2f7; margin-right: 10px;">
