@@ -62,7 +62,6 @@ for i in range(7):
         if m_dt_local.date() == day:
             day_matches.append(m)
 
-    # UPDATED SORTING: Group by Top League status, then alphabetical League Name, then Time
     day_matches.sort(key=lambda x: (
         x.get('league_id') not in TOP_LEAGUE_IDS, 
         x.get('league', 'Other Football'), 
@@ -73,7 +72,6 @@ for i in range(7):
     for m in day_matches:
         league = m.get('league', 'Other Football')
         
-        # This creates one header for the entire league group
         if league != last_league:
             listing_html += f'<div class="league-header">{league}</div>'
             last_league = league
@@ -95,19 +93,28 @@ for i in range(7):
             </div>
         </a>'''
 
-        # --- 4. MATCH PAGES ---
+        # --- 4. MATCH PAGES (UPDATED ROW FORMATTING) ---
         m_path = f"match/{m_slug}/{m_date_folder}"
         os.makedirs(m_path, exist_ok=True)
         venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
         
         rows = ""
         for c in m.get('tv_channels', []):
-            pills = "".join([f'<a href="{DOMAIN}/channel/{slugify(ch)}/" class="mx-1 text-blue-600 underline text-xs">{ch}</a>' for ch in c['channels']])
+            # Formatted channel pills with background and borders
+            channel_links = [f'<a href="{DOMAIN}/channel/{slugify(ch)}/" style="display: inline-block; background: #f1f5f9; color: #2563eb; padding: 2px 8px; border-radius: 4px; margin: 2px; text-decoration: none; font-weight: 600; border: 1px solid #e2e8f0;">{ch}</a>' for ch in c['channels']]
+            pills = "".join(channel_links)
+            
             for ch in c['channels']:
                 if ch not in channels_data: channels_data[ch] = []
                 if not any(x['m']['match_id'] == m['match_id'] for x in channels_data[ch]):
                     channels_data[ch].append({'m': m, 'dt': m_dt_local, 'league': league})
-            rows += f'<div class="flex justify-between p-4 border-b"><b>{c["country"]}</b><div>{pills}</div></div>'
+            
+            # Table-like row using Flexbox for responsiveness
+            rows += f'''
+            <div style="display: flex; align-items: flex-start; padding: 12px; border-bottom: 1px solid #edf2f7; background: #fff;">
+                <div style="flex: 0 0 100px; font-weight: 800; color: #475569; font-size: 13px; padding-top: 4px;">{c["country"]}</div>
+                <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px;">{pills}</div>
+            </div>'''
 
         with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
             m_html = templates['match'].replace("{{FIXTURE}}", m['fixture']).replace("{{DOMAIN}}", DOMAIN)
