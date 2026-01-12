@@ -3,71 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maintenance Mode | CricFoot</title>
+    <title>Offside! Page Not Found</title>
+    <meta http-equiv="refresh" content="5;url=https://tv.cricfoot.net/">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top center, #003a6e 0%, #001a33 100%);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(-10%) rotate(0deg); }
+            50% { transform: translateY(0) rotate(20deg); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 3s infinite ease-in-out;
+        }
+
+        .progress-bar {
+            animation: shrink 5s linear forwards;
+        }
+        @keyframes shrink {
+            from { width: 100%; }
+            to { width: 0%; }
+        }
     </style>
 </head>
-<body class="bg-slate-100 flex items-center justify-center min-h-screen">
-    <div class="text-center p-8 bg-white shadow-xl rounded-2xl max-w-md border border-slate-200 mx-4">
-        <div class="text-6xl mb-4 animate-pulse">🛠️</div>
+<body class="text-white flex items-center justify-center min-h-screen p-6 overflow-hidden">
+
+    <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600 rounded-full blur-[120px] opacity-20"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-emerald-500 rounded-full blur-[120px] opacity-10"></div>
+
+    <div class="glass relative z-10 text-center p-10 md:p-16 rounded-[2rem] max-w-lg w-full shadow-2xl">
+        <div class="relative inline-block mb-8">
+            <div class="text-8xl animate-bounce-slow select-none">⚽</div>
+            <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-16 h-3 bg-black/30 rounded-full blur-md"></div>
+        </div>
+
+        <h1 class="text-5xl font-800 tracking-tight mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+            OFFSIDE!
+        </h1>
+        <p class="text-slate-400 text-lg mb-8 leading-relaxed">
+            The match you're looking for isn't on the pitch. We're putting you back in the game.
+        </p>
         
-        <h1 class="text-2xl font-bold text-slate-800 mb-2">Under Maintenance</h1>
-        <p class="text-slate-500 mb-6">We're updating the pitch for the next big match. We'll be back online shortly!</p>
-        
-        <div class="bg-slate-50 border border-slate-100 rounded-lg py-4 mb-6">
-            <span class="block text-sm uppercase tracking-widest text-slate-400 font-bold mb-1">Back In</span>
-            <div id="countdown" class="text-4xl font-mono font-bold text-blue-600">
-                10:00
+        <div class="mb-10">
+            <div class="flex justify-between text-xs font-bold uppercase tracking-widest text-blue-400 mb-2 px-1">
+                <span>Redirecting</span>
+                <span id="countdown">5s</span>
+            </div>
+            <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div class="progress-bar h-full bg-gradient-to-r from-blue-500 to-emerald-400"></div>
             </div>
         </div>
 
-        <div class="w-full bg-slate-200 rounded-full h-1.5 mb-8">
-            <div class="bg-blue-600 h-1.5 rounded-full animate-[shimmer_2s_infinite]" style="width: 70%"></div>
-        </div>
-        
-        <p class="text-xs text-slate-400">Thank you for your patience.</p>
+        <a href="https://tv.cricfoot.net/" class="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-blue-600 font-pj rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 hover:bg-blue-500 shadow-lg shadow-blue-900/20">
+            Back to Match Center
+            <svg class="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+            </svg>
+        </a>
     </div>
 
     <script>
-        // Set the countdown time in minutes
-        let timeInMinutes = 10;
-        let currentTime = timeInMinutes * 60;
+        // Visual Countdown logic
+        let timeLeft = 5;
+        const countdownElem = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {
+            timeLeft--;
+            countdownElem.innerText = timeLeft + "s";
+            if (timeLeft <= 0) clearInterval(timer);
+        }, 1000);
 
-        const countdownElement = document.getElementById('countdown');
-
-        const updateCountdown = () => {
-            const minutes = Math.floor(currentTime / 60);
-            const seconds = currentTime % 60;
-
-            // Format numbers to always show two digits
-            const displayMinutes = minutes < 10 ? '0' + minutes : minutes;
-            const displaySeconds = seconds < 10 ? '0' + seconds : seconds;
-
-            countdownElement.innerText = `${displayMinutes}:${displaySeconds}`;
-
-            if (currentTime <= 0) {
-                clearInterval(timerInterval);
-                countdownElement.innerText = "Ready!";
-                // Optional: Auto-refresh when timer hits zero
-                // window.location.reload();
-            } else {
-                currentTime--;
-            }
-        };
-
-        // Run every second
-        const timerInterval = setInterval(updateCountdown, 1000);
+        // Fallback Javascript redirect
+        setTimeout(function() {
+            window.location.href = "https://tv.cricfoot.net/";
+        }, 5500);
     </script>
-
-    <style>
-        @keyframes shimmer {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-        }
-    </style>
 </body>
 </html>
