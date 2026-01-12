@@ -99,7 +99,6 @@ for i in range(7):
     fname = "index.html" if day == TODAY_DATE else f"{day.strftime('%Y-%m-%d')}.html"
     if fname != "index.html": sitemap_urls.append(f"{DOMAIN}/{fname}")
 
-    # Create the centered responsive menu HTML
     page_specific_menu = f'{MENU_CSS}<div class="weekly-menu-container">'
     for j in range(7):
         m_day = MENU_START_DATE + timedelta(days=j)
@@ -115,7 +114,6 @@ for i in range(7):
     day_matches = []
     for m in all_matches:
         m_dt_local = datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(LOCAL_OFFSET)
-        # STRICT FILTER: Compare dates only
         if m_dt_local.date() == day:
             day_matches.append(m)
 
@@ -160,14 +158,17 @@ for i in range(7):
         m_path = f"match/{m_slug}/{m_date_folder}"
         os.makedirs(m_path, exist_ok=True)
         venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
+        
         rows = ""
+        country_counter = 0
         for c in m.get('tv_channels', []):
+            country_counter += 1
             channel_links = [f'<a href="{DOMAIN}/channel/{slugify(ch)}/" style="display: inline-block; background: #f1f5f9; color: #2563eb; padding: 2px 8px; border-radius: 4px; margin: 2px; text-decoration: none; font-weight: 600; border: 1px solid #e2e8f0;">{ch}</a>' for ch in c['channels']]
             pills = "".join(channel_links)
+            
             for ch in c['channels']:
                 if ch not in channels_data: channels_data[ch] = []
-                # Only add to channel data if it hasn't happened yet
-                if int(m['kickoff']) > (NOW.timestamp() - 7200): # Show matches until 2 hours after kickoff
+                if int(m['kickoff']) > (NOW.timestamp() - 7200):
                     if not any(x['m']['match_id'] == m['match_id'] for x in channels_data[ch]):
                         channels_data[ch].append({'m': m, 'dt': m_dt_local, 'league': league})
             
@@ -176,6 +177,10 @@ for i in range(7):
                 <div style="flex: 0 0 100px; font-weight: 800; color: #475569; font-size: 13px; padding-top: 4px;">{c["country"]}</div>
                 <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px;">{pills}</div>
             </div>'''
+            
+            # --- ADD ADS EVERY 10 COUNTRIES ---
+            if country_counter % 10 == 0:
+                rows += ADS_CODE
 
         with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
             m_html = templates['match'].replace("{{FIXTURE}}", m['fixture']).replace("{{DOMAIN}}", DOMAIN)
@@ -193,7 +198,7 @@ for i in range(7):
         output = output.replace("{{PAGE_TITLE}}", f"TV Channels For {day.strftime('%A, %b %d, %Y')}")
         df.write(output)
 
-# --- 5. CHANNEL PAGES (Unified UI & Future Only) ---
+# --- 5. CHANNEL PAGES ---
 for ch_name, matches in channels_data.items():
     c_slug = slugify(ch_name)
     c_dir = f"channel/{c_slug}"
@@ -211,7 +216,6 @@ for ch_name, matches in channels_data.items():
     matches.sort(key=lambda x: x['m']['kickoff'])
     for item in matches:
         m, dt, m_league = item['m'], item['dt'], item['league']
-        # Unified layout same as index.html
         c_listing += f'''
         <a href="{DOMAIN}/match/{slugify(m['fixture'])}/{dt.strftime('%Y%m%d')}/" class="match-row flex items-center p-4 bg-white border-b border-slate-100 group">
             <div class="time-box" style="min-width: 95px; text-align: center; border-right: 1px solid #edf2f7; margin-right: 10px;">
@@ -234,4 +238,4 @@ for url in list(set(sitemap_urls)):
 sitemap_content += '</urlset>'
 with open("sitemap.xml", "w", encoding='utf-8') as sm: sm.write(sitemap_content)
 
-print("Success! Matches strictly filtered by date. Channel pages now show upcoming matches only.")
+print("Success! Matches strictly filtered. Ads added every 10 countries in match pages.")
