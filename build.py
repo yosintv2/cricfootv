@@ -8,8 +8,9 @@ LOCAL_OFFSET = timezone(timedelta(hours=5))
 NOW = datetime.now(LOCAL_OFFSET)
 TODAY_DATE = NOW.date()
 
-# Updated Menu Logic: Start from TODAY and show the next 7 days
-# (Previous Friday-based START_WEEK removed to ensure Today is always first)
+# CENTER LOGIC: To make Today the 4th item, we start the menu 3 days ago
+MENU_START_DATE = TODAY_DATE - timedelta(days=3)
+
 TOP_LEAGUE_IDS = [7, 35, 23, 17]
 
 # Google Ads Code Block
@@ -24,6 +25,44 @@ ADS_CODE = '''
          data-full-width-responsive="true"></ins>
     <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
 </div>
+'''
+
+# Fully Responsive Menu CSS (Forces 7 items on one line, no scroll)
+MENU_CSS = '''
+<style>
+    .weekly-menu-container {
+        display: flex;
+        width: 100%;
+        gap: 4px;
+        padding: 10px 5px;
+        box-sizing: border-box;
+        justify-content: space-between;
+    }
+    .date-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 2px;
+        text-decoration: none;
+        border-radius: 6px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        min-width: 0; 
+        transition: all 0.2s;
+    }
+    .date-btn div { font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: bold; }
+    .date-btn b { font-size: 10px; color: #1e293b; white-space: nowrap; }
+    .date-btn.active { background: #2563eb; border-color: #2563eb; }
+    .date-btn.active div, .date-btn.active b { color: #fff; }
+    
+    @media (max-width: 480px) {
+        .date-btn b { font-size: 8px; }
+        .date-btn div { font-size: 7px; }
+        .weekly-menu-container { gap: 2px; padding: 5px 2px; }
+    }
+</style>
 '''
 
 def slugify(t): 
@@ -56,26 +95,23 @@ channels_data = {}
 sitemap_urls = [DOMAIN + "/"]
 
 # --- 3. GENERATE DAILY PAGES ---
-# Generate menu items starting from Today (i=0 is always today)
-current_page_menu = ""
-for j in range(7):
-    m_day = TODAY_DATE + timedelta(days=j)
-    m_fname = "index.html" if m_day == TODAY_DATE else f"{m_day.strftime('%Y-%m-%d')}.html"
-    # Note: 'active' logic moved inside the page loop below
-    current_page_menu += f'[[MENU_ITEM_{j}]]' 
-
 for i in range(7):
-    day = TODAY_DATE + timedelta(days=i)
+    day = MENU_START_DATE + timedelta(days=i)
     fname = "index.html" if day == TODAY_DATE else f"{day.strftime('%Y-%m-%d')}.html"
     if fname != "index.html": sitemap_urls.append(f"{DOMAIN}/{fname}")
 
-    # Create the actual menu HTML for this specific page
-    page_specific_menu = ""
+    # Create the centered responsive menu HTML
+    page_specific_menu = f'{MENU_CSS}<div class="weekly-menu-container">'
     for j in range(7):
-        m_day = TODAY_DATE + timedelta(days=j)
+        m_day = MENU_START_DATE + timedelta(days=j)
         m_fname = "index.html" if m_day == TODAY_DATE else f"{m_day.strftime('%Y-%m-%d')}.html"
         active_class = "active" if m_day == day else ""
-        page_specific_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn {active_class}"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
+        page_specific_menu += f'''
+        <a href="{DOMAIN}/{m_fname}" class="date-btn {active_class}">
+            <div>{m_day.strftime("%a")}</div>
+            <b>{m_day.strftime("%b %d")}</b>
+        </a>'''
+    page_specific_menu += '</div>'
 
     day_matches = []
     for m in all_matches:
@@ -90,18 +126,17 @@ for i in range(7):
     ))
 
     listing_html, last_league = "", ""
-    league_counter = 0 # Track how many leagues have been listed
+    league_counter = 0
 
     for m in day_matches:
         league = m.get('league', 'Other Football')
         
         if league != last_league:
-            # Check if we should insert an ad (Every 3 leagues)
             if last_league != "":
                 league_counter += 1
+                # Ad after every 3 leagues
                 if league_counter % 3 == 0:
                     listing_html += ADS_CODE
-                
             listing_html += f'<div class="league-header">{league}</div>'
             last_league = league
         
@@ -126,12 +161,10 @@ for i in range(7):
         m_path = f"match/{m_slug}/{m_date_folder}"
         os.makedirs(m_path, exist_ok=True)
         venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
-        
         rows = ""
         for c in m.get('tv_channels', []):
             channel_links = [f'<a href="{DOMAIN}/channel/{slugify(ch)}/" style="display: inline-block; background: #f1f5f9; color: #2563eb; padding: 2px 8px; border-radius: 4px; margin: 2px; text-decoration: none; font-weight: 600; border: 1px solid #e2e8f0;">{ch}</a>' for ch in c['channels']]
             pills = "".join(channel_links)
-            
             for ch in c['channels']:
                 if ch not in channels_data: channels_data[ch] = []
                 if not any(x['m']['match_id'] == m['match_id'] for x in channels_data[ch]):
@@ -146,23 +179,18 @@ for i in range(7):
         with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
             m_html = templates['match'].replace("{{FIXTURE}}", m['fixture']).replace("{{DOMAIN}}", DOMAIN)
             m_html = m_html.replace("{{BROADCAST_ROWS}}", rows).replace("{{LEAGUE}}", league)
-            plain_date = m_dt_local.strftime("%d %b %Y")
-            plain_time = m_dt_local.strftime("%H:%M")
-            m_html = m_html.replace("{{DATE}}", plain_date).replace("{{TIME}}", plain_time)
-            m_html = m_html.replace("{{LOCAL_DATE}}", f'<span class="auto-date" data-unix="{m["kickoff"]}">{plain_date}</span>')
-            m_html = m_html.replace("{{LOCAL_TIME}}", f'<span class="auto-time" data-unix="{m["kickoff"]}">{plain_time}</span>')
+            m_html = m_html.replace("{{LOCAL_DATE}}", f'<span class="auto-date" data-unix="{m["kickoff"]}">{m_dt_local.strftime("%d %b %Y")}</span>')
+            m_html = m_html.replace("{{LOCAL_TIME}}", f'<span class="auto-time" data-unix="{m["kickoff"]}">{m_dt_local.strftime("%H:%M")}</span>')
             m_html = m_html.replace("{{UNIX}}", str(m['kickoff'])).replace("{{VENUE}}", venue_val) 
             mf.write(m_html)
 
-    # Insert a final ad at the bottom if any matches exist
-    if listing_html != "":
-        listing_html += ADS_CODE
+    # Final ad at bottom
+    if listing_html != "": listing_html += ADS_CODE
 
-    # Write Home/Date Files
     with open(fname, "w", encoding='utf-8') as df:
         output = templates['home'].replace("{{MATCH_LISTING}}", listing_html).replace("{{WEEKLY_MENU}}", page_specific_menu)
         output = output.replace("{{DOMAIN}}", DOMAIN).replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
-        output = output.replace("{{PAGE_TITLE}}", f"Soccer TV Channels For {day.strftime('%A, %b %d, %Y')}")
+        output = output.replace("{{PAGE_TITLE}}", f"TV Channels For {day.strftime('%A, %b %d, %Y')}")
         df.write(output)
 
 # --- 5. CHANNEL PAGES ---
@@ -171,34 +199,32 @@ for ch_name, matches in channels_data.items():
     c_dir = f"channel/{c_slug}"
     os.makedirs(c_dir, exist_ok=True)
     sitemap_urls.append(f"{DOMAIN}/{c_dir}/")
+    
+    # Use the same centered menu for channel pages
+    channel_menu = f'{MENU_CSS}<div class="weekly-menu-container">'
+    for j in range(7):
+        m_day = MENU_START_DATE + timedelta(days=j)
+        m_fname = "index.html" if m_day == TODAY_DATE else f"{m_day.strftime('%Y-%m-%d')}.html"
+        channel_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
+    channel_menu += '</div>'
+
     c_listing = ""
     matches.sort(key=lambda x: x['m']['kickoff'])
     for item in matches:
         m, dt, m_league = item['m'], item['dt'], item['league']
-        m_slug = slugify(m['fixture'])
-        m_date_folder = dt.strftime('%Y%m%d')
         c_listing += f'''
-        <a href="{DOMAIN}/match/{m_slug}/{m_date_folder}/" class="match-row flex items-center p-4 bg-white border-b group">
-            <div class="time-box" style="min-width: 95px; text-align: center; border-right: 1px solid #edf2f7; margin-right: 10px;">
-                <div class="text-[10px] uppercase text-slate-400 font-bold auto-date" data-unix="{m['kickoff']}">{dt.strftime('%d %b')}</div>
-                <div class="font-bold text-blue-600 text-sm auto-time" data-unix="{m['kickoff']}">{dt.strftime('%H:%M')}</div>
+        <a href="{DOMAIN}/match/{slugify(m['fixture'])}/{dt.strftime('%Y%m%d')}/" class="match-row flex items-center p-4 bg-white border-b">
+            <div class="time-box" style="min-width: 95px; text-align: center; margin-right: 10px;">
+                <div class="auto-date" data-unix="{m['kickoff']}">{dt.strftime('%d %b')}</div>
+                <div class="auto-time" data-unix="{m['kickoff']}">{dt.strftime('%H:%M')}</div>
             </div>
             <div class="flex-1">
-                <span class="text-slate-800 font-semibold text-sm md:text-base">{m['fixture']}</span>
-                <div class="text-[10px] text-gray-400 uppercase font-bold">{m_league}</div>
+                <span class="font-semibold">{m['fixture']}</span>
+                <div class="text-xs text-gray-400">{m_league}</div>
             </div>
         </a>'''
     with open(f"{c_dir}/index.html", "w", encoding='utf-8') as cf:
-        # For channel pages, we use the menu starting from Today's date
-        channel_menu = ""
-        for j in range(7):
-            m_day = TODAY_DATE + timedelta(days=j)
-            m_fname = "index.html" if m_day == TODAY_DATE else f"{m_day.strftime('%Y-%m-%d')}.html"
-            channel_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
-            
-        c_html = templates['channel'].replace("{{CHANNEL_NAME}}", ch_name).replace("{{MATCH_LISTING}}", c_listing)
-        c_html = c_html.replace("{{DOMAIN}}", DOMAIN).replace("{{WEEKLY_MENU}}", channel_menu)
-        cf.write(c_html)
+        cf.write(templates['channel'].replace("{{CHANNEL_NAME}}", ch_name).replace("{{MATCH_LISTING}}", c_listing).replace("{{DOMAIN}}", DOMAIN).replace("{{WEEKLY_MENU}}", channel_menu))
 
 # --- 6. SITEMAP ---
 sitemap_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -207,4 +233,4 @@ for url in list(set(sitemap_urls)):
 sitemap_content += '</urlset>'
 with open("sitemap.xml", "w", encoding='utf-8') as sm: sm.write(sitemap_content)
 
-print(f"Success! {len(sitemap_urls)} URLs generated. Current date (Today) is always first in menu.")
+print(f"Success! Today ({TODAY_DATE}) is now at the center of the menu.")
