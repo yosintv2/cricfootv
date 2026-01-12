@@ -14,12 +14,19 @@ START_WEEK = TODAY_DATE - timedelta(days=days_since_friday)
 
 TOP_LEAGUE_IDS = [7, 35, 23, 17]
 
-# Google Ads Code
+# Google Ads Code Block
 ADS_CODE = '''
-<div class="ad-container" style="margin: 10px 0;">
+<div class="ad-container" style="margin: 20px 0; text-align: center;">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5525538810839147" crossorigin="anonymous"></script>
-    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5525538810839147" data-ad-slot="4345862479" data-ad-format="auto" data-full-width-responsive="true"></ins>
-    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-5525538810839147"
+         data-ad-slot="4345862479"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>
+         (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
 </div>
 '''
 
@@ -81,11 +88,10 @@ for i in range(7):
     for m in day_matches:
         league = m.get('league', 'Other Football')
         
+        # When the league changes, insert an ad (unless it's the very first league)
         if league != last_league:
-            # Add Ad BEFORE starting a new league (except for the very first league of the page)
             if last_league != "":
                 listing_html += ADS_CODE
-                
             listing_html += f'<div class="league-header">{league}</div>'
             last_league = league
         
@@ -138,11 +144,11 @@ for i in range(7):
             m_html = m_html.replace("{{UNIX}}", str(m['kickoff'])).replace("{{VENUE}}", venue_val) 
             mf.write(m_html)
 
-    # Add one last ad after the final league listing of the day
+    # Insert a final ad at the bottom of the list
     if listing_html != "":
         listing_html += ADS_CODE
 
-    # Home/Date Page output
+    # Write Home/Date Files
     with open(fname, "w", encoding='utf-8') as df:
         output = templates['home'].replace("{{MATCH_LISTING}}", listing_html).replace("{{WEEKLY_MENU}}", current_page_menu)
         output = output.replace("{{DOMAIN}}", DOMAIN).replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
@@ -155,15 +161,12 @@ for ch_name, matches in channels_data.items():
     c_dir = f"channel/{c_slug}"
     os.makedirs(c_dir, exist_ok=True)
     sitemap_urls.append(f"{DOMAIN}/{c_dir}/")
-
     c_listing = ""
     matches.sort(key=lambda x: x['m']['kickoff'])
-    
     for item in matches:
         m, dt, m_league = item['m'], item['dt'], item['league']
         m_slug = slugify(m['fixture'])
         m_date_folder = dt.strftime('%Y%m%d')
-        
         c_listing += f'''
         <a href="{DOMAIN}/match/{m_slug}/{m_date_folder}/" class="match-row flex items-center p-4 bg-white border-b group">
             <div class="time-box" style="min-width: 95px; text-align: center; border-right: 1px solid #edf2f7; margin-right: 10px;">
@@ -175,12 +178,9 @@ for ch_name, matches in channels_data.items():
                 <div class="text-[10px] text-gray-400 uppercase font-bold">{m_league}</div>
             </div>
         </a>'''
-
     with open(f"{c_dir}/index.html", "w", encoding='utf-8') as cf:
-        c_html = templates['channel'].replace("{{CHANNEL_NAME}}", ch_name)
-        c_html = c_html.replace("{{MATCH_LISTING}}", c_listing)
-        c_html = c_html.replace("{{DOMAIN}}", DOMAIN)
-        c_html = c_html.replace("{{WEEKLY_MENU}}", current_page_menu)
+        c_html = templates['channel'].replace("{{CHANNEL_NAME}}", ch_name).replace("{{MATCH_LISTING}}", c_listing)
+        c_html = c_html.replace("{{DOMAIN}}", DOMAIN).replace("{{WEEKLY_MENU}}", current_page_menu)
         cf.write(c_html)
 
 # --- 6. SITEMAP ---
