@@ -14,6 +14,15 @@ START_WEEK = TODAY_DATE - timedelta(days=days_since_friday)
 
 TOP_LEAGUE_IDS = [7, 35, 23, 17]
 
+# Google Ads Code
+ADS_CODE = '''
+<div class="ad-container" style="margin: 10px 0;">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5525538810839147" crossorigin="anonymous"></script>
+    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5525538810839147" data-ad-slot="4345862479" data-ad-format="auto" data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+</div>
+'''
+
 def slugify(t): 
     return re.sub(r'[^a-z0-9]+', '-', str(t).lower()).strip('-')
 
@@ -73,6 +82,10 @@ for i in range(7):
         league = m.get('league', 'Other Football')
         
         if league != last_league:
+            # Add Ad BEFORE starting a new league (except for the very first league of the page)
+            if last_league != "":
+                listing_html += ADS_CODE
+                
             listing_html += f'<div class="league-header">{league}</div>'
             last_league = league
         
@@ -93,14 +106,13 @@ for i in range(7):
             </div>
         </a>'''
 
-        # --- 4. MATCH PAGES (UPDATED ROW FORMATTING) ---
+        # --- 4. MATCH PAGES ---
         m_path = f"match/{m_slug}/{m_date_folder}"
         os.makedirs(m_path, exist_ok=True)
         venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
         
         rows = ""
         for c in m.get('tv_channels', []):
-            # Formatted channel pills with background and borders
             channel_links = [f'<a href="{DOMAIN}/channel/{slugify(ch)}/" style="display: inline-block; background: #f1f5f9; color: #2563eb; padding: 2px 8px; border-radius: 4px; margin: 2px; text-decoration: none; font-weight: 600; border: 1px solid #e2e8f0;">{ch}</a>' for ch in c['channels']]
             pills = "".join(channel_links)
             
@@ -109,7 +121,6 @@ for i in range(7):
                 if not any(x['m']['match_id'] == m['match_id'] for x in channels_data[ch]):
                     channels_data[ch].append({'m': m, 'dt': m_dt_local, 'league': league})
             
-            # Table-like row using Flexbox for responsiveness
             rows += f'''
             <div style="display: flex; align-items: flex-start; padding: 12px; border-bottom: 1px solid #edf2f7; background: #fff;">
                 <div style="flex: 0 0 100px; font-weight: 800; color: #475569; font-size: 13px; padding-top: 4px;">{c["country"]}</div>
@@ -119,17 +130,17 @@ for i in range(7):
         with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
             m_html = templates['match'].replace("{{FIXTURE}}", m['fixture']).replace("{{DOMAIN}}", DOMAIN)
             m_html = m_html.replace("{{BROADCAST_ROWS}}", rows).replace("{{LEAGUE}}", league)
-            
             plain_date = m_dt_local.strftime("%d %b %Y")
             plain_time = m_dt_local.strftime("%H:%M")
-            
-            m_html = m_html.replace("{{DATE}}", plain_date)
-            m_html = m_html.replace("{{TIME}}", plain_time)
+            m_html = m_html.replace("{{DATE}}", plain_date).replace("{{TIME}}", plain_time)
             m_html = m_html.replace("{{LOCAL_DATE}}", f'<span class="auto-date" data-unix="{m["kickoff"]}">{plain_date}</span>')
             m_html = m_html.replace("{{LOCAL_TIME}}", f'<span class="auto-time" data-unix="{m["kickoff"]}">{plain_time}</span>')
-            m_html = m_html.replace("{{UNIX}}", str(m['kickoff']))
-            m_html = m_html.replace("{{VENUE}}", venue_val) 
+            m_html = m_html.replace("{{UNIX}}", str(m['kickoff'])).replace("{{VENUE}}", venue_val) 
             mf.write(m_html)
+
+    # Add one last ad after the final league listing of the day
+    if listing_html != "":
+        listing_html += ADS_CODE
 
     # Home/Date Page output
     with open(fname, "w", encoding='utf-8') as df:
