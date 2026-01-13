@@ -2,18 +2,22 @@ name: Deploy SEO Site
 
 on:
   push:
-    branches: [ main ]
-    # Trigger only when files in the date folder change
+    branches:
+      - main
     paths:
       - 'date/**'
-  
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch: 
+  # Added workflow_dispatch so you can always test it manually
+  workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+# Ensure only one deployment runs at a time to prevent conflicts
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -27,12 +31,18 @@ jobs:
         with:
           python-version: '3.9'
 
+      - name: Install dependencies
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
       - name: Build Site
         run: python build.py
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          # If your build.py outputs to a specific folder (like 'dist' or 'public'), 
+          # change '.' to that folder name.
           path: '.'
 
   deploy:
