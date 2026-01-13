@@ -1,20 +1,24 @@
 name: Deploy SEO Site
 
 on:
+  schedule:
+    # This runs at 00:00, 05:30, 11:00, 16:30, and 22:00 UTC
+    - cron: '0 0,11 * * *'      # Midnight and 11:00
+    - cron: '30 5,16 * * *'     # 05:30 and 16:30
+    - cron: '0 22 * * *'        # 22:00
+  
+  # Keeping these so you can still trigger it manually or via push
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths:
       - 'date/**'
-  # Added workflow_dispatch so you can always test it manually
-  workflow_dispatch:
+  workflow_dispatch: 
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Ensure only one deployment runs at a time to prevent conflicts
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -31,18 +35,12 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install dependencies
-        run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
       - name: Build Site
         run: python build.py
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # If your build.py outputs to a specific folder (like 'dist' or 'public'), 
-          # change '.' to that folder name.
           path: '.'
 
   deploy:
