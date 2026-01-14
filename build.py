@@ -4,8 +4,11 @@ from datetime import datetime, timedelta, timezone
 # --- CONFIGURATION ---
 DOMAIN = "https://tv.cricfoot.net"
 
-# Auto-detect system timezone offset
-LOCAL_OFFSET = timezone(timedelta(seconds=-time.timezone if time.daylight == 0 else -time.altzone))
+# Use named timezone instead of offset
+TIMEZONE = os.getenv('TIMEZONE', 'Asia/Karachi')  # UTC+5
+LOCAL_OFFSET = ZoneInfo(TIMEZONE)
+
+NOW = datetime.now(LOCAL_OFFSET)
 
 DIST_DIR = "dist"
 os.makedirs(DIST_DIR, exist_ok=True)
