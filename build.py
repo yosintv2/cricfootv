@@ -1,19 +1,67 @@
-import json, os, re, glob 
+import json, os, re, glob, shutil
 from datetime import datetime, timedelta, timezone
 
 # --- CONFIGURATION ---
 DOMAIN = "https://tv.cricfoot.net"
 LOCAL_OFFSET = timezone(timedelta(hours=5)) 
+OUT_DIR = "_site" # Using a dedicated output folder to prevent 404/offline issues
+
+# Ensure a fresh build directory
+if os.path.exists(OUT_DIR):
+    shutil.rmtree(OUT_DIR)
+os.makedirs(OUT_DIR)
 
 NOW = datetime.now(LOCAL_OFFSET)
 TODAY_DATE = NOW.date()
 
 # CENTER LOGIC: To make Today the 4th item, we start the menu 3 days ago
 MENU_START_DATE = TODAY_DATE - timedelta(days=3)
-# We calculate the end date of the menu as well
 MENU_END_DATE = TODAY_DATE + timedelta(days=3)
 
 TOP_LEAGUE_IDS = [17, 35, 23, 7, 8, 34, 679]
+
+# --- SEARCH & AUTO-SUGGEST HTML/JS ---
+SEARCH_HTML = '''
+<div class="search-container" style="position: relative; margin: 15px 5px;">
+    <input type="text" id="channelSearch" placeholder="Search TV Channels..." 
+           style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; font-size: 14px; box-sizing: border-box;">
+    <div id="suggestions" style="position: absolute; width: 100%; background: white; border: 1px solid #e2e8f0; border-top: none; z-index: 1000; border-radius: 0 0 8px 8px; display: none; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);"></div>
+</div>
+<script>
+    const searchInput = document.getElementById('channelSearch');
+    const suggBox = document.getElementById('suggestions');
+    let channels = [];
+
+    fetch('/channels.json').then(r => r.json()).then(data => { channels = data; });
+
+    searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase();
+        suggBox.innerHTML = '';
+        if (val.length < 1) { suggBox.style.display = 'none'; return; }
+        
+        const filtered = channels.filter(c => c.name.toLowerCase().includes(val)).slice(0, 10);
+        
+        if (filtered.length > 0) {
+            filtered.forEach(c => {
+                const div = document.createElement('div');
+                div.innerHTML = c.name;
+                div.style.padding = '10px';
+                div.style.cursor = 'pointer';
+                div.style.borderBottom = '1px solid #f1f5f9';
+                div.onclick = () => { window.location.href = `/channel/${c.slug}/`; };
+                suggBox.appendChild(div);
+            });
+            suggBox.style.display = 'block';
+        } else {
+            suggBox.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target !== searchInput) suggBox.style.display = 'none';
+    });
+</script>
+'''
 
 # Google Ads Code Block
 ADS_CODE = '''
@@ -96,7 +144,6 @@ channels_data = {}
 sitemap_urls = [DOMAIN + "/"]
 
 # --- 3. PRE-PROCESS ALL MATCHES (FOR MATCH PAGES & SITEMAP) ---
-# We do this outside the 7-day loop so older/future matches are NOT skipped.
 for m in all_matches:
     m_dt_local = datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(LOCAL_OFFSET)
     m_slug = slugify(m['fixture'])
@@ -110,13 +157,12 @@ for m in all_matches:
     for c in m.get('tv_channels', []):
         for ch in c['channels']:
             if ch not in channels_data: channels_data[ch] = []
-            # Keep history in channel pages if needed, or filter by time
-            if int(m['kickoff']) > (NOW.timestamp() - 86400): # Show matches from last 24h onwards on channel pages
+            if int(m['kickoff']) > (NOW.timestamp() - 86400):
                 if not any(x['m']['match_id'] == m['match_id'] for x in channels_data[ch]):
                     channels_data[ch].append({'m': m, 'dt': m_dt_local, 'league': league})
 
     # --- GENERATE INDIVIDUAL MATCH PAGE ---
-    m_path = f"match/{m_slug}/{m_date_folder}"
+    m_path = os.path.join(OUT_DIR, "match", m_slug, m_date_folder)
     os.makedirs(m_path, exist_ok=True)
     venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
     
@@ -143,7 +189,7 @@ for m in all_matches:
         m_html = m_html.replace("{{UNIX}}", str(m['kickoff'])).replace("{{VENUE}}", venue_val) 
         mf.write(m_html)
 
-# --- 4. GENERATE DAILY LISTING PAGES (STILL 7 DAYS FOR MENU) ---
+# --- 4. GENERATE DAILY LISTING PAGES ---
 for i in range(7):
     day = MENU_START_DATE + timedelta(days=i)
     fname = "index.html" if day == TODAY_DATE else f"{day.strftime('%Y-%m-%d')}.html"
@@ -204,18 +250,21 @@ for i in range(7):
 
     if listing_html != "": listing_html += ADS_CODE
 
-    with open(fname, "w", encoding='utf-8') as df:
+    with open(os.path.join(OUT_DIR, fname), "w", encoding='utf-8') as df:
         output = templates['home'].replace("{{MATCH_LISTING}}", listing_html).replace("{{WEEKLY_MENU}}", page_specific_menu)
         output = output.replace("{{DOMAIN}}", DOMAIN).replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
         output = output.replace("{{PAGE_TITLE}}", f"TV Channels For {day.strftime('%A, %b %d, %Y')}")
+        output = output.replace("{{SEARCH_BAR}}", SEARCH_HTML)
         df.write(output)
 
-# --- 5. CHANNEL PAGES ---
+# --- 5. CHANNEL PAGES & AUTO-SUGGEST DATA ---
+channel_suggestions = []
 for ch_name, matches in channels_data.items():
     c_slug = slugify(ch_name)
-    c_dir = f"channel/{c_slug}"
+    channel_suggestions.append({"name": ch_name, "slug": c_slug})
+    c_dir = os.path.join(OUT_DIR, "channel", c_slug)
     os.makedirs(c_dir, exist_ok=True)
-    sitemap_urls.append(f"{DOMAIN}/{c_dir}/")
+    sitemap_urls.append(f"{DOMAIN}/channel/{c_slug}/")
     
     channel_menu = f'{MENU_CSS}<div class="weekly-menu-container">'
     for j in range(7):
@@ -241,13 +290,17 @@ for ch_name, matches in channels_data.items():
         </a>'''
         
     with open(f"{c_dir}/index.html", "w", encoding='utf-8') as cf:
-        cf.write(templates['channel'].replace("{{CHANNEL_NAME}}", ch_name).replace("{{MATCH_LISTING}}", c_listing).replace("{{DOMAIN}}", DOMAIN).replace("{{WEEKLY_MENU}}", channel_menu))
+        cf.write(templates['channel'].replace("{{CHANNEL_NAME}}", ch_name).replace("{{MATCH_LISTING}}", c_listing).replace("{{DOMAIN}}", DOMAIN).replace("{{WEEKLY_MENU}}", channel_menu).replace("{{SEARCH_BAR}}", SEARCH_HTML))
+
+# Generate the JSON file used by the search bar for auto-suggestions
+with open(os.path.join(OUT_DIR, "channels.json"), "w", encoding='utf-8') as f:
+    json.dump(channel_suggestions, f)
 
 # --- 6. SITEMAP ---
 sitemap_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
 for url in sorted(list(set(sitemap_urls))):
     sitemap_content += f'<url><loc>{url}</loc><lastmod>{NOW.strftime("%Y-%m-%d")}</lastmod></url>'
 sitemap_content += '</urlset>'
-with open("sitemap.xml", "w", encoding='utf-8') as sm: sm.write(sitemap_content)
+with open(os.path.join(OUT_DIR, "sitemap.xml"), "w", encoding='utf-8') as sm: sm.write(sitemap_content)
 
-print("Success! All matches from JSON generated and included in sitemap, regardless of menu dates.")
+print(f"Success! Site built in {OUT_DIR} directory. Search function and channel suggestions ready.")
