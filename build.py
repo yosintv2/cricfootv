@@ -1,7 +1,7 @@
 import json, os, re, glob 
 from datetime import datetime, timedelta, timezone
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION --- 
 DOMAIN = "https://tv.cricfoot.net"
 LOCAL_OFFSET = timezone(timedelta(hours=5)) 
 
