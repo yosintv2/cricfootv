@@ -6,7 +6,7 @@ DOMAIN = "https://tv.cricfoot.net"
 LOCAL_OFFSET = timezone(timedelta(hours=5)) 
 
 NOW = datetime.now(LOCAL_OFFSET)
-TODAY_DATE = NOW.date()
+TODAY_DATE = NOW.date() 
 
 # CENTER LOGIC: To make Today the 4th item, we start the menu 3 days ago
 MENU_START_DATE = TODAY_DATE - timedelta(days=3)
