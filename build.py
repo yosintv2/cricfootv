@@ -228,7 +228,7 @@ for ch_name, matches in channels_data.items():
         m_fname = "index.html" if m_day == TODAY_DATE else f"{m_day.strftime('%Y-%m-%d')}.html"
         channel_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
     channel_menu += '</div>'
-
+ 
     c_listing = ""
     matches.sort(key=lambda x: x['m']['kickoff'])
     for item in matches:
