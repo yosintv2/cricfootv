@@ -8,6 +8,7 @@ LOCAL_OFFSET = timezone(timedelta(hours=HOURS_OFFSET))
 NOW = datetime.now(LOCAL_OFFSET)
 TODAY_DATE = NOW.date() 
 
+# Center Logic: Menu shows a 7-day window
 MENU_START_DATE = TODAY_DATE - timedelta(days=3)
 MENU_END_DATE = TODAY_DATE + timedelta(days=3)
 
@@ -37,9 +38,6 @@ MENU_CSS = '''
     .team-col b { display: block; margin-bottom: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
     .team-col ul { list-style: none; padding: 0; margin: 0; }
     .team-col li { font-size: 13px; padding: 6px 0; color: #475569; border-bottom: 1px dashed #f1f5f9; }
-    
-
-    
     @media (max-width: 480px) { .date-btn b { font-size: 8px; } .date-btn div { font-size: 7px; } }
 </style>
 '''
@@ -48,11 +46,8 @@ def slugify(t):
     return re.sub(r'[^a-z0-9]+', '-', str(t).lower()).strip('-')
 
 def get_team_names(fixture):
-    """Splits 'Arsenal vs Chelsea' into ['Arsenal', 'Chelsea']"""
-    if " vs " in fixture:
-        return [t.strip() for t in fixture.split(" vs ")]
-    elif " - " in fixture:
-        return [t.strip() for t in fixture.split(" - ")]
+    if " vs " in fixture: return [t.strip() for t in fixture.split(" vs ")]
+    elif " - " in fixture: return [t.strip() for t in fixture.split(" - ")]
     return ["Home", "Away"]
 
 def get_sofa_data(data_type, date_str, match_id):
@@ -120,7 +115,7 @@ for name in ['home', 'match', 'channel']:
     with open(f'{name}_template.html', 'r', encoding='utf-8') as f:
         templates[name] = f.read()
 
-# --- 2. LOAD DATA ---
+# --- 2. LOAD DATA (NO FILTERING FOR SITEMAP) ---
 all_matches = []
 seen_match_ids = set()
 for f in sorted(glob.glob("date/*.json")):
@@ -137,32 +132,40 @@ for f in sorted(glob.glob("date/*.json")):
 channels_data = {}
 sitemap_urls = [DOMAIN + "/"]
 
-# --- 3. PRE-PROCESS ALL MATCHES ---
+# --- 3. PROCESS ALL MATCHES (INCLUDING OLD ONES) ---
 for m in all_matches:
-    m_dt_local = datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(LOCAL_OFFSET)
+    # Handle timestamp carefully
+    ts_val = int(m['kickoff'])
+    ts_seconds = ts_val / 1000 if ts_val > 10000000000 else ts_val
+    m_dt_local = datetime.fromtimestamp(ts_seconds, tz=timezone.utc).astimezone(LOCAL_OFFSET)
+    
     m_slug = slugify(m['fixture'])
     teams = get_team_names(m['fixture'])
     m_date_folder = m_dt_local.strftime('%Y%m%d')
     m_url = f"{DOMAIN}/match/{m_slug}/{m_date_folder}/"
+    
+    # ALWAYS add to sitemap
     sitemap_urls.append(m_url)
+    
     league = m.get('league', 'Other Football')
     mid = m['match_id']
 
+    # Handle channels for future/recent matches only for the listing logic
     for c in m.get('tv_channels', []):
         for ch in c['channels']:
             if ch not in channels_data: channels_data[ch] = []
-            if int(m['kickoff']) > (NOW.timestamp() - 86400):
+            if ts_seconds > (NOW.timestamp() - 86400): # Only show active matches in channel pages
                 if not any(x['m']['match_id'] == mid for x in channels_data[ch]):
                     channels_data[ch].append({'m': m, 'dt': m_dt_local, 'league': league})
 
-    # Sofa Data
+    # Fetch Sofa Data
     lineup_raw = get_sofa_data("lineups", m_date_folder, mid)
     stats_raw = get_sofa_data("statistics", m_date_folder, mid)
     h2h_raw = get_sofa_data("h2h", m_date_folder, mid)
     odds_raw = get_sofa_data("odds", m_date_folder, mid)
     form_raw = get_sofa_data("form", m_date_folder, mid)
 
-    # Probability
+    # Probability Logic
     odds_html = "<div class='p-4 text-center text-gray-400 italic'>Win Probability N/A</div>"
     if isinstance(odds_raw, dict):
         h_prob = odds_raw.get('home', {}).get('expected', '-') if odds_raw.get('home') else '-'
@@ -173,7 +176,7 @@ for m in all_matches:
             <div class="text-center"><div style="font-size:10px; color:#64748b; font-weight:700; margin-bottom:4px;">{teams[1].upper()}</div><div style="font-size:24px; font-weight:900; color:#dc2626;">{a_prob}%</div></div>
         </div>'''
 
-    # Form
+    # Form Logic
     form_html = ""
     if isinstance(form_raw, dict):
         h_f = form_raw.get('homeTeam', {}).get('form')
@@ -184,12 +187,13 @@ for m in all_matches:
                 <div class="stat-row"><span>{teams[1]}</span>{format_form_circles(a_f)}</div>
             </div>'''
 
+    # Write Match Files (THIS PREVENTS 404)
     m_path = f"match/{m_slug}/{m_date_folder}"
     os.makedirs(m_path, exist_ok=True)
     
     rows = ""
     for c in m.get('tv_channels', []):
-        pills = "".join([f'<a href="{DOMAIN}/channel/{slugify(ch)}/" class="ch-pill" style="display:inline-block;background:#f1f5f9;color:#2563eb;padding:4px 10px;border-radius:6px;margin:2px;text-decoration:none;font-size:12px;font-weight:700;border:1px solid #e2e8f0;">{ch}</a>' for ch in c['channels']])
+        pills = "".join([f'<a href="{DOMAIN}/channel/{slugify(ch)}/" style="display:inline-block;background:#f1f5f9;color:#2563eb;padding:4px 10px;border-radius:6px;margin:2px;text-decoration:none;font-size:12px;font-weight:700;border:1px solid #e2e8f0;">{ch}</a>' for ch in c['channels']])
         rows += f'<div style="display:flex;padding:12px;border-bottom:1px solid #edf2f7;background:#fff;align-items:center;"><div style="flex:0 0 100px;font-weight:800;color:#64748b;font-size:11px;text-transform:uppercase;">{c["country"]}</div><div style="flex:1;">{pills}</div></div>'
 
     sofa_blocks = f'''
@@ -197,42 +201,41 @@ for m in all_matches:
     {form_html}
     <div class="sofa-card"><div class="sofa-header">Confirmed Lineups</div>{build_lineups_html(lineup_raw, teams)}</div>
     <div class="sofa-card"><div class="sofa-header">Match Statistics</div>{build_stats_html(stats_raw)}</div>
-    <div class="sofa-card"><div class="sofa-header">Head to Head</div>{build_h2h_html(h2h_raw, teams)}</div>
-    '''
+    <div class="sofa-card"><div class="sofa-header">Head to Head</div>{build_h2h_html(h2h_raw, teams)}</div>'''
 
     with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
         m_html = templates['match'].replace("{{FIXTURE}}", m['fixture']).replace("{{DOMAIN}}", DOMAIN)
-        m_html = m_html.replace("{{BROADCAST_ROWS}}", rows).replace("{{LEAGUE}}", league)
-        m_html = m_html.replace("{{SOFA_DATA}}", sofa_blocks)
-        m_html = m_html.replace("{{LOCAL_DATE}}", m_dt_local.strftime("%d %b %Y"))
-        m_html = m_html.replace("{{LOCAL_TIME}}", m_dt_local.strftime("%H:%M"))
-        m_html = m_html.replace("{{UNIX}}", str(m['kickoff'])).replace("{{VENUE}}", m.get('venue', 'TBA')) 
+        m_html = m_html.replace("{{BROADCAST_ROWS}}", rows).replace("{{LEAGUE}}", league).replace("{{SOFA_DATA}}", sofa_blocks)
+        m_html = m_html.replace("{{LOCAL_DATE}}", m_dt_local.strftime("%d %b %Y")).replace("{{LOCAL_TIME}}", m_dt_local.strftime("%H:%M"))
+        m_html = m_html.replace("{{UNIX}}", str(int(ts_seconds))).replace("{{VENUE}}", m.get('venue', 'TBA')) 
         mf.write(m_html)
 
 # --- 4. DAILY LISTING PAGES ---
 for i in range(7):
     day = MENU_START_DATE + timedelta(days=i)
     fname = "index.html" if day == TODAY_DATE else f"{day.strftime('%Y-%m-%d')}.html"
-    
-    page_specific_menu = f'{MENU_CSS}<div class="weekly-menu-container">'
+    if fname != "index.html": sitemap_urls.append(f"{DOMAIN}/{fname}")
+
+    menu = f'{MENU_CSS}<div class="weekly-menu-container">'
     for j in range(7):
         m_day = MENU_START_DATE + timedelta(days=j)
         m_fname = "index.html" if m_day == TODAY_DATE else f"{m_day.strftime('%Y-%m-%d')}.html"
-        active_class = "active" if m_day == day else ""
-        page_specific_menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn {active_class}"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
-    page_specific_menu += '</div>'
+        active = "active" if m_day == day else ""
+        menu += f'<a href="{DOMAIN}/{m_fname}" class="date-btn {active}"><div>{m_day.strftime("%a")}</div><b>{m_day.strftime("%b %d")}</b></a>'
+    menu += '</div>'
 
-    day_matches = [m for m in all_matches if datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(LOCAL_OFFSET).date() == day]
-    day_matches.sort(key=lambda x: (x.get('league_id') not in TOP_LEAGUE_IDS, x.get('league', 'Other Football'), x['kickoff']))
+    day_matches = [m for m in all_matches if datetime.fromtimestamp(int(m['kickoff'])/1000 if int(m['kickoff']) > 10000000000 else int(m['kickoff']), tz=timezone.utc).astimezone(LOCAL_OFFSET).date() == day]
+    day_matches.sort(key=lambda x: (x.get('league_id') not in TOP_LEAGUE_IDS, x.get('league', 'Other Football'), int(x['kickoff'])))
 
-    listing_html, last_league = "", ""
+    listing_html, last_l = "", ""
     for m in day_matches:
         league = m.get('league', 'Other Football')
-        if league != last_league:
-            listing_html += f'<div class="league-header" style="background:#1e293b;color:#fff;padding:8px 15px;font-weight:bold;font-size:12px;text-transform:uppercase;">{league}</div>'
-            last_league = league
+        if league != last_l:
+            listing_html += f'<div class="league-header">{league}</div>'
+            last_l = league
         
-        m_dt = datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(LOCAL_OFFSET)
+        m_ts = int(m['kickoff'])/1000 if int(m['kickoff']) > 10000000000 else int(m['kickoff'])
+        m_dt = datetime.fromtimestamp(m_ts, tz=timezone.utc).astimezone(LOCAL_OFFSET)
         m_url = f"{DOMAIN}/match/{slugify(m['fixture'])}/{m_dt.strftime('%Y%m%d')}/"
         listing_html += f'''<a href="{m_url}" class="match-row" style="display:flex;align-items:center;padding:14px;background:#fff;border-bottom:1px solid #f1f5f9;text-decoration:none;">
             <div style="min-width:70px;text-align:center;border-right:1px solid #eee;margin-right:15px;">
@@ -243,16 +246,14 @@ for i in range(7):
         </a>'''
 
     with open(fname, "w", encoding='utf-8') as df:
-        output = templates['home'].replace("{{MATCH_LISTING}}", listing_html).replace("{{WEEKLY_MENU}}", page_specific_menu)
-        output = output.replace("{{DOMAIN}}", DOMAIN).replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
-        output = output.replace("{{PAGE_TITLE}}", f"TV Channels For {day.strftime('%A, %b %d, %Y')}")
-        df.write(output)
+        df.write(templates['home'].replace("{{MATCH_LISTING}}", listing_html).replace("{{WEEKLY_MENU}}", menu).replace("{{DOMAIN}}", DOMAIN).replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d")).replace("{{PAGE_TITLE}}", f"TV for {day.strftime('%d %b')}"))
 
 # --- 5. CHANNEL PAGES ---
 for ch_name, matches in channels_data.items():
     c_slug = slugify(ch_name)
     c_dir = f"channel/{c_slug}"
     os.makedirs(c_dir, exist_ok=True)
+    sitemap_urls.append(f"{DOMAIN}/{c_dir}/")
     c_listing = ""
     matches.sort(key=lambda x: x['m']['kickoff'])
     for item in matches: 
@@ -267,11 +268,12 @@ for ch_name, matches in channels_data.items():
     with open(f"{c_dir}/index.html", "w", encoding='utf-8') as cf:
         cf.write(templates['channel'].replace("{{CHANNEL_NAME}}", ch_name).replace("{{MATCH_LISTING}}", c_listing).replace("{{DOMAIN}}", DOMAIN))
 
-# --- 6. SITEMAP ---
+# --- 6. SITEMAP (ALL URLs) ---
+sitemap_urls = sorted(list(set(sitemap_urls)))
 sitemap_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-for url in sorted(list(set(sitemap_urls))):
+for url in sitemap_urls:
     sitemap_content += f'<url><loc>{url}</loc><lastmod>{NOW.strftime("%Y-%m-%d")}</lastmod></url>'
 sitemap_content += '</urlset>'
 with open("sitemap.xml", "w", encoding='utf-8') as sm: sm.write(sitemap_content)
 
-print("Build Successful: Visuals Updated.")
+print(f"Success! {len(sitemap_urls)} URLs added to sitemap. Old matches generated.")
