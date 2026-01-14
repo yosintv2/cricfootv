@@ -10,6 +10,8 @@ TODAY_DATE = NOW.date()
 
 # CENTER LOGIC: To make Today the 4th item, we start the menu 3 days ago
 MENU_START_DATE = TODAY_DATE - timedelta(days=3)
+# We calculate the end date of the menu as well
+MENU_END_DATE = TODAY_DATE + timedelta(days=3)
 
 TOP_LEAGUE_IDS = [17, 35, 23, 7, 8, 34, 679]
 
@@ -93,7 +95,55 @@ for f in glob.glob("date/*.json"):
 channels_data = {}
 sitemap_urls = [DOMAIN + "/"]
 
-# --- 3. GENERATE DAILY PAGES ---
+# --- 3. PRE-PROCESS ALL MATCHES (FOR MATCH PAGES & SITEMAP) ---
+# We do this outside the 7-day loop so older/future matches are NOT skipped.
+for m in all_matches:
+    m_dt_local = datetime.fromtimestamp(int(m['kickoff']), tz=timezone.utc).astimezone(LOCAL_OFFSET)
+    m_slug = slugify(m['fixture'])
+    m_date_folder = m_dt_local.strftime('%Y%m%d')
+    m_url = f"{DOMAIN}/match/{m_slug}/{m_date_folder}/"
+    sitemap_urls.append(m_url)
+    
+    league = m.get('league', 'Other Football')
+    
+    # --- CHANNEL DATA POPULATION ---
+    for c in m.get('tv_channels', []):
+        for ch in c['channels']:
+            if ch not in channels_data: channels_data[ch] = []
+            # Keep history in channel pages if needed, or filter by time
+            if int(m['kickoff']) > (NOW.timestamp() - 86400): # Show matches from last 24h onwards on channel pages
+                if not any(x['m']['match_id'] == m['match_id'] for x in channels_data[ch]):
+                    channels_data[ch].append({'m': m, 'dt': m_dt_local, 'league': league})
+
+    # --- GENERATE INDIVIDUAL MATCH PAGE ---
+    m_path = f"match/{m_slug}/{m_date_folder}"
+    os.makedirs(m_path, exist_ok=True)
+    venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
+    
+    rows = ""
+    country_counter = 0
+    for c in m.get('tv_channels', []):
+        country_counter += 1
+        channel_links = [f'<a href="{DOMAIN}/channel/{slugify(ch)}/" style="display: inline-block; background: #f1f5f9; color: #2563eb; padding: 2px 8px; border-radius: 4px; margin: 2px; text-decoration: none; font-weight: 600; border: 1px solid #e2e8f0;">{ch}</a>' for ch in c['channels']]
+        pills = "".join(channel_links)
+        
+        rows += f'''
+        <div style="display: flex; align-items: flex-start; padding: 12px; border-bottom: 1px solid #edf2f7; background: #fff;">
+            <div style="flex: 0 0 100px; font-weight: 800; color: #475569; font-size: 13px; padding-top: 4px;">{c["country"]}</div>
+            <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px;">{pills}</div>
+        </div>'''
+        if country_counter % 10 == 0:
+            rows += ADS_CODE
+
+    with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
+        m_html = templates['match'].replace("{{FIXTURE}}", m['fixture']).replace("{{DOMAIN}}", DOMAIN)
+        m_html = m_html.replace("{{BROADCAST_ROWS}}", rows).replace("{{LEAGUE}}", league)
+        m_html = m_html.replace("{{LOCAL_DATE}}", f'<span class="auto-date" data-unix="{m["kickoff"]}">{m_dt_local.strftime("%d %b %Y")}</span>')
+        m_html = m_html.replace("{{LOCAL_TIME}}", f'<span class="auto-time" data-unix="{m["kickoff"]}">{m_dt_local.strftime("%H:%M")}</span>')
+        m_html = m_html.replace("{{UNIX}}", str(m['kickoff'])).replace("{{VENUE}}", venue_val) 
+        mf.write(m_html)
+
+# --- 4. GENERATE DAILY LISTING PAGES (STILL 7 DAYS FOR MENU) ---
 for i in range(7):
     day = MENU_START_DATE + timedelta(days=i)
     fname = "index.html" if day == TODAY_DATE else f"{day.strftime('%Y-%m-%d')}.html"
@@ -128,7 +178,6 @@ for i in range(7):
 
     for m in day_matches:
         league = m.get('league', 'Other Football')
-        
         if league != last_league:
             if last_league != "":
                 league_counter += 1
@@ -141,7 +190,6 @@ for i in range(7):
         m_slug = slugify(m['fixture'])
         m_date_folder = m_dt_local.strftime('%Y%m%d')
         m_url = f"{DOMAIN}/match/{m_slug}/{m_date_folder}/"
-        sitemap_urls.append(m_url)
         
         listing_html += f'''
         <a href="{m_url}" class="match-row flex items-center p-4 bg-white group border-b border-slate-100">
@@ -153,42 +201,6 @@ for i in range(7):
                 <span class="text-slate-800 font-semibold text-sm md:text-base">{m['fixture']}</span>
             </div>
         </a>'''
-
-        # --- 4. MATCH PAGES ---
-        m_path = f"match/{m_slug}/{m_date_folder}"
-        os.makedirs(m_path, exist_ok=True)
-        venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
-        
-        rows = ""
-        country_counter = 0
-        for c in m.get('tv_channels', []):
-            country_counter += 1
-            channel_links = [f'<a href="{DOMAIN}/channel/{slugify(ch)}/" style="display: inline-block; background: #f1f5f9; color: #2563eb; padding: 2px 8px; border-radius: 4px; margin: 2px; text-decoration: none; font-weight: 600; border: 1px solid #e2e8f0;">{ch}</a>' for ch in c['channels']]
-            pills = "".join(channel_links)
-            
-            for ch in c['channels']:
-                if ch not in channels_data: channels_data[ch] = []
-                if int(m['kickoff']) > (NOW.timestamp() - 7200):
-                    if not any(x['m']['match_id'] == m['match_id'] for x in channels_data[ch]):
-                        channels_data[ch].append({'m': m, 'dt': m_dt_local, 'league': league})
-            
-            rows += f'''
-            <div style="display: flex; align-items: flex-start; padding: 12px; border-bottom: 1px solid #edf2f7; background: #fff;">
-                <div style="flex: 0 0 100px; font-weight: 800; color: #475569; font-size: 13px; padding-top: 4px;">{c["country"]}</div>
-                <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px;">{pills}</div>
-            </div>'''
-            
-            # --- ADD ADS EVERY 10 COUNTRIES ---
-            if country_counter % 10 == 0:
-                rows += ADS_CODE
-
-        with open(f"{m_path}/index.html", "w", encoding='utf-8') as mf:
-            m_html = templates['match'].replace("{{FIXTURE}}", m['fixture']).replace("{{DOMAIN}}", DOMAIN)
-            m_html = m_html.replace("{{BROADCAST_ROWS}}", rows).replace("{{LEAGUE}}", league)
-            m_html = m_html.replace("{{LOCAL_DATE}}", f'<span class="auto-date" data-unix="{m["kickoff"]}">{m_dt_local.strftime("%d %b %Y")}</span>')
-            m_html = m_html.replace("{{LOCAL_TIME}}", f'<span class="auto-time" data-unix="{m["kickoff"]}">{m_dt_local.strftime("%H:%M")}</span>')
-            m_html = m_html.replace("{{UNIX}}", str(m['kickoff'])).replace("{{VENUE}}", venue_val) 
-            mf.write(m_html)
 
     if listing_html != "": listing_html += ADS_CODE
 
@@ -233,9 +245,9 @@ for ch_name, matches in channels_data.items():
 
 # --- 6. SITEMAP ---
 sitemap_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-for url in list(set(sitemap_urls)):
+for url in sorted(list(set(sitemap_urls))):
     sitemap_content += f'<url><loc>{url}</loc><lastmod>{NOW.strftime("%Y-%m-%d")}</lastmod></url>'
 sitemap_content += '</urlset>'
 with open("sitemap.xml", "w", encoding='utf-8') as sm: sm.write(sitemap_content)
 
-print("Success! Matches strictly filtered. Ads added every 10 countries in match pages.")
+print("Success! All matches from JSON generated and included in sitemap, regardless of menu dates.")
