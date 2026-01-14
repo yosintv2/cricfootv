@@ -7,6 +7,9 @@ DOMAIN = "https://tv.cricfoot.net"
 # Auto-detect system timezone offset
 LOCAL_OFFSET = timezone(timedelta(seconds=-time.timezone if time.daylight == 0 else -time.altzone))
 
+DIST_DIR = "dist"
+os.makedirs(DIST_DIR, exist_ok=True)
+
 NOW = datetime.now(LOCAL_OFFSET)
 TODAY_DATE = NOW.date()
 
@@ -109,7 +112,7 @@ for m in all_matches:
                     channels_data[ch].append({'m': m, 'dt': m_dt_local, 'league': league})
 
     # --- GENERATE INDIVIDUAL MATCH PAGE ---
-    m_path = f"match/{m_slug}/{m_date_folder}"
+    m_path = f"{DIST_DIR}/match/{m_slug}/{m_date_folder}"
     os.makedirs(m_path, exist_ok=True)
     venue_val = m.get('venue') or m.get('stadium') or "To Be Announced"
     
@@ -147,6 +150,8 @@ ALL_DATES = sorted({
 
 for day in ALL_DATES:
     fname = "index.html" if day == TODAY_DATE else f"{day.strftime('%Y-%m-%d')}.html"
+    out_path = f"{DIST_DIR}/{fname}"
+    
     if fname != "index.html": sitemap_urls.append(f"{DOMAIN}/{fname}")
 
     page_specific_menu = f'{MENU_CSS}<div class="weekly-menu-container">'
@@ -204,7 +209,7 @@ for day in ALL_DATES:
 
     if listing_html != "": listing_html += ADS_CODE
 
-    with open(fname, "w", encoding='utf-8') as df:
+    with open(out_path, "w", encoding='utf-8') as df:
         output = templates['home'].replace("{{MATCH_LISTING}}", listing_html).replace("{{WEEKLY_MENU}}", page_specific_menu)
         output = output.replace("{{DOMAIN}}", DOMAIN).replace("{{SELECTED_DATE}}", day.strftime("%A, %b %d, %Y"))
         output = output.replace("{{PAGE_TITLE}}", f"TV Channels For {day.strftime('%A, %b %d, %Y')}")
@@ -213,7 +218,7 @@ for day in ALL_DATES:
 # --- 5. CHANNEL PAGES ---
 for ch_name, matches in channels_data.items():
     c_slug = slugify(ch_name)
-    c_dir = f"channel/{c_slug}"
+    c_dir = f"{DIST_DIR}/channel/{c_slug}"
     os.makedirs(c_dir, exist_ok=True)
     sitemap_urls.append(f"{DOMAIN}/{c_dir}/")
     
@@ -248,6 +253,6 @@ sitemap_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://w
 for url in sorted(list(set(sitemap_urls))):
     sitemap_content += f'<url><loc>{url}</loc><lastmod>{NOW.strftime("%Y-%m-%d")}</lastmod></url>'
 sitemap_content += '</urlset>'
-with open("sitemap.xml", "w", encoding='utf-8') as sm: sm.write(sitemap_content)
+with open(f"{DIST_DIR}/sitemap.xml", "w", encoding='utf-8') as sm: sm.write(sitemap_content)
 
 print("Success! All match dates generated, menu unchanged.")
