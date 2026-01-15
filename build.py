@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 # --- CONFIGURATION ---
 DOMAIN = "https://tv.cricfoot.net"
 
-# Auto-detect system timezone offset
+# Auto-detect system timezone offset 
 LOCAL_OFFSET = timezone(timedelta(seconds=-time.timezone if time.daylight == 0 else -time.altzone))
 
 DIST_DIR = "dist"
