@@ -3,6 +3,9 @@ from datetime import datetime, timedelta, timezone
 
 # --- CONFIGURATION ---
 DOMAIN = "https://tv.cricfoot.net"
+BASE_URL = "https://tv.cricfoot.net"
+CUSTOM_DOMAIN = "tv.cricfoot.net"
+
 
 # Auto-detect system timezone offset
 LOCAL_OFFSET = timezone(timedelta(seconds=-time.timezone if time.daylight == 0 else -time.altzone))
