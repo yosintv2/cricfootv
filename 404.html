@@ -52,7 +52,7 @@
             const seconds = currentTime % 60;
 
             // Format numbers to always show two digits
-            const displayMinutes = minutes < 10 ? '0' + minutes : minutes;
+            const displayMinutes = minutes < 1 ? '0' + minutes : minutes;
             const displaySeconds = seconds < 10 ? '0' + seconds : seconds;
 
             countdownElement.innerText = `${displayMinutes}:${displaySeconds}`;
