@@ -309,4 +309,4 @@ else:
     fallback_404 = "<html><head><meta http-equiv='refresh' content='0;url=/'></head><body>Redirecting...</body></html>"
     with open(os.path.join(TEMP_DIR, "404.html"), "w") as f:
         f.write(fallback_404)
-    print("⚠️ 404.html missing from root, created redirect fallback")
+    print("⚠️ 404.html missing from root, created redirect fallback") 
