@@ -289,63 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
-
-document.addEventListener('DOMContentLoaded', function() {
-    
-    function convertToLocalTime() {
-        // Convert short dates (e.g., "14 Jan")
-        var dateElements = document.querySelectorAll('.auto-date');
-        dateElements.forEach(function(el) {
-            var unixTimestamp = el.getAttribute('data-unix');
-            if (unixTimestamp) {
-                var date = new Date(parseInt(unixTimestamp) * 1000);
-                
-                // Check if element wants full date format
-                var format = el.getAttribute('data-format') || 'short';
-                
-                if (format === 'full') {
-                    // Format: "14 Jan 2025"
-                    var options = { day: '2-digit', month: 'short', year: 'numeric' };
-                    var formattedDate = date.toLocaleDateString('en-GB', options);
-                    el.textContent = formattedDate;
-                } else if (format === 'long') {
-                    // Format: "Monday, Jan 14, 2025"
-                    var options = { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' };
-                    var formattedDate = date.toLocaleDateString('en-US', options);
-                    el.textContent = formattedDate;
-                } else {
-                    // Default short format: "14 Jan"
-                    var options = { day: '2-digit', month: 'short' };
-                    var formattedDate = date.toLocaleDateString('en-GB', options);
-                    el.textContent = formattedDate;
-                }
-            }
-        });
-        
-        // Convert times
-        var timeElements = document.querySelectorAll('.auto-time');
-        timeElements.forEach(function(el) {
-            var unixTimestamp = el.getAttribute('data-unix');
-            if (unixTimestamp) {
-                var date = new Date(parseInt(unixTimestamp) * 1000);
-                
-                // 24-hour format
-                var hours = date.getHours().toString().padStart(2, '0');
-                var minutes = date.getMinutes().toString().padStart(2, '0');
-                var formattedTime = hours + ':' + minutes;
-                
-                el.textContent = formattedTime;
-            }
-        });
-    }
-    
-    // Run conversion
-    convertToLocalTime();
-    
-    // Optional: Update every minute to keep times current
-    setInterval(convertToLocalTime, 60000);
-    
-});
 </script>
     
 </body>
